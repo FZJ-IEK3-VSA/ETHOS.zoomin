@@ -1,0 +1,54 @@
+import os
+import traceback
+import json
+from zoomin import disaggregation_manager as disagg_manager
+from zoomin import snakemake_utils as sm_utls
+from zoomin.post_disagg_calculation import perform_post_disagg_calculation
+
+bad_proxy_dict = {}
+
+def log_error(error, file_name):
+    FILE_PATH = f"error_{file_name}.log"
+
+    with open(FILE_PATH, 'w') as f:
+        print(error)
+        f.write(error)
+
+rule all:
+    input:
+        "bad_proxy_log.json"
+
+climate_vars = sm_utls.get_climate_vars()
+
+# Define a wildcard for each parameter
+wildcard_constraints:
+    # climate vars 
+    wc_climate_var_detail = "|".join(climate_vars)
+
+# =========================================================================
+#############      CLIMATE VARS DISAGGREGATION       ####################
+# =========================================================================
+
+rule disaggregate_climate_vars:
+    output:
+        touch("output_logs/{wc_climate_var_detail}.log")
+    run:
+        try:
+            disagg_manager.process_climate_var(wildcards.wc_climate_var_detail)
+        
+        except Exception as e:
+            log_error(traceback.format_exc(), wildcards.wc_climate_var_detail)
+            raise e
+
+#==========================================================================
+
+rule final:
+    input:
+        expand("output_logs/{var_name}.log", 
+                var_name=climate_vars)
+    output:
+        "bad_proxy_log.json"
+    run:
+        # log bad proxies 
+        with open("bad_proxy_log.json", 'w') as fp:
+            json.dump(bad_proxy_dict, fp)
