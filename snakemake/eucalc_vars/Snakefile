@@ -1,0 +1,125 @@
+import os
+import traceback
+import json
+from zoomin import disaggregation_manager as disagg_manager
+from zoomin import snakemake_utils as sm_utls
+from zoomin.post_disagg_calculation import perform_post_disagg_calculation
+
+eucalc_years = ["2020", "2025", "2030", "2035", "2040", "2045", "2050"]
+
+bad_proxy_dict = {}
+
+def log_error(error, file_name):
+    FILE_PATH = f"error_{file_name}.log"
+
+    with open(FILE_PATH, 'w') as f:
+        print(error)
+        f.write(error)
+
+rule all:
+    input:
+        "bad_proxy_log.json"
+
+pathway_file_names = sm_utls.get_pathways()
+eucalc_vars_prio_1 = sm_utls.get_eucalc_vars(priority_level=1)
+eucalc_vars_prio_2 = sm_utls.get_eucalc_vars(priority_level=2)
+#NOTE: priority_level=3 reserved for post_disagg_calc vars 
+eucalc_vars_prio_3 = sm_utls.get_eucalc_vars(priority_level=3)
+
+# Define a wildcard for each parameter
+wildcard_constraints:
+    # eucalc vars 
+    wc_pathway_file_name = "|".join(pathway_file_names),
+
+    wc_eucalc_var_prio_1 = "|".join(eucalc_vars_prio_1),
+    wc_eucalc_var_prio_2 = "|".join(eucalc_vars_prio_2), 
+    wc_eucalc_var_prio_3 = "|".join(eucalc_vars_prio_3), 
+
+    wc_eucalc_year = "|".join(eucalc_years)
+
+# =============================================================
+#####################      EUCALC VARS     ####################
+# =============================================================
+
+# PRIO 1 
+rule disaggregate_eucalc_vars_prio_1:
+    output:
+        touch("output_logs/{wc_eucalc_var_prio_1}_{wc_eucalc_year}_{wc_pathway_file_name}.log")
+    run:
+        try:
+            bad_proxy = disagg_manager.process_eucalc_var(wildcards.wc_eucalc_var_prio_1, 
+                                                wildcards.wc_pathway_file_name,
+                                                wildcards.wc_eucalc_year)
+
+            if bad_proxy is not None:
+                bad_proxy_dict.update({f"{wildcards.wc_eucalc_var_prio_1}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway_file_name}": bad_proxy})
+
+        except Exception as e:
+            log_error(traceback.format_exc(), f"{wildcards.wc_eucalc_var_prio_1}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway_file_name}")
+            raise e
+            
+rule end_of_prio_1:
+    input:
+        expand("output_logs/{var_name}_{year}_{pathway_file_name}.log", 
+                var_name=eucalc_vars_prio_1,
+                year=eucalc_years,
+                pathway_file_name=pathway_file_names)
+    output:
+        touch("output_logs/finished_prio_1.log")
+
+# PRIO 2
+rule disaggregate_eucalc_vars_prio_2:
+    input:
+        "output_logs/finished_prio_1.log"
+    output:
+        touch("output_logs/{wc_eucalc_var_prio_2}_{wc_eucalc_year}_{wc_pathway_file_name}.log")
+    run:
+        try:
+            bad_proxy = disagg_manager.process_eucalc_var(wildcards.wc_eucalc_var_prio_2, 
+                                                wildcards.wc_pathway_file_name,
+                                                wildcards.wc_eucalc_year)
+
+            if bad_proxy is not None:
+                bad_proxy_dict.update({f"{wildcards.wc_eucalc_var_prio_2}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway_file_name}": bad_proxy})
+
+        except Exception as e:
+            log_error(traceback.format_exc(), f"{wildcards.wc_eucalc_var_prio_2}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway_file_name}")
+            raise e
+
+rule end_of_prio_2:
+    input:
+        expand("output_logs/{var_name}_{year}_{pathway_file_name}.log", 
+                var_name=eucalc_vars_prio_2,
+                year=eucalc_years,
+                pathway_file_name=pathway_file_names)
+    output:
+        touch("output_logs/finished_prio_2.log")
+
+# POST DISAGGREGATION CALCULATION 
+
+rule calculate_eucalc_vars_post_disaggregation:
+    input:
+        "output_logs/finished_prio_2.log"
+    output:
+        touch("output_logs/{wc_eucalc_var_prio_3}_{wc_pathway_file_name}.log")
+    run:
+        try:
+            perform_post_disagg_calculation(wildcards.wc_eucalc_var_prio_3, "eucalc_var", wildcards.wc_pathway_file_name)
+
+        except Exception as e:
+            log_error(traceback.format_exc(), wildcards.wc_eucalc_var_prio_3)
+            raise e
+
+#================================================================================================
+
+rule final:
+    input:
+        expand("output_logs/{var_name}_{pathway_file_name}.log", 
+                    var_name=eucalc_vars_prio_3,
+                    pathway_file_name=pathway_file_names)
+    output:
+        "bad_proxy_log.json"
+    run:
+        # log bad proxies 
+        with open("bad_proxy_log.json", 'w') as fp:
+            json.dump(bad_proxy_dict, fp)

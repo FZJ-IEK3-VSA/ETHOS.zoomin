@@ -1,0 +1,86 @@
+image: mambaorg/micromamba:latest
+
+services:
+  - name: postgis/postgis:14-3.2
+    alias: postgres
+
+stages:
+  - test
+  # - deploy 
+
+test:
+  stage: test
+  variables:
+    POSTGRES_DB: $DB_NAME
+    POSTGRES_USER: $DB_USER
+    POSTGRES_PASSWORD: $DB_PASSWORD
+    POSTGRES_HOST_AUTH_METHOD: trust
+
+    DB_ENGINE: $DB_ENGINE
+    DB_NAME: $DB_NAME
+    DB_USER: $DB_USER
+    DB_PASSWORD: $DB_PASSWORD
+    DB_HOST: $DB_HOST
+    DB_PORT: $DB_PORT
+
+  before_script:
+    # install requirements in a new environment and activate it 
+    - micromamba create -n zoomin -f requirements.yml
+    - eval "$(micromamba shell hook --shell=bash)"
+    - micromamba activate zoomin
+    - echo installation finished
+
+  script:
+    # black format 
+    - black --check zoomin
+    - black --check tests
+    # static analysis
+    # - prospector --profile .prospector.yaml #TODO: uncomment it when prospector is working fine again
+    # tests 
+    - python -m pytest tests/
+
+  except: 
+    refs:
+      - master
+
+
+# deployment:
+#   stage: deploy 
+
+#   variables:
+#     DEBUG: $PROD_DEBUG
+#     SECRET_KEY: $PROD_DJANGO_SECRET_KEY
+#     API_KEY: $PROD_DJANGO_API_Key
+#     ALLOWED_HOSTS: $PROD_DJANGO_ALLOWED_HOSTS
+
+#     DB_ENGINE: $PROD_DB_ENGINE
+#     DB_NAME: $PROD_DB_NAME
+#     DB_USER: $PROD_DB_USER
+#     DB_PASSWORD: $PROD_DB_PASSWORD
+#     DB_HOST: $PROD_DB_HOST
+#     DB_PORT: $PROD_DB_PORT
+    
+#     SERVER_IP: $PROD_SERVER_IP
+#     SERVER_USER: $PROD_SERVER_USER
+    
+#   before_script: 
+#     # # Revoke all permissions for group and others from the private key, such that only the owner can use it. 
+#     # # This is a requirement, otherwise SSH refuses to work with the private key.
+#     # - chmod og= $id_ed25519
+#     # # install the openssh-client, which provides the ssh command
+#     # - apt-get install openssh-client
+#     # - conda install -c conda-forge openssh
+
+#   script:
+#     # - ssh -i $id_ed25519 -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP 'bash -s' < ./run_deployment.sh $DJANGO_CACHE_LOCATION
+#     - ssh -i $id_ed25519 -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP 'echo hello world' 
+#   only: 
+#     refs:
+#       - master
+    
+    
+ 
+    
+
+
+
