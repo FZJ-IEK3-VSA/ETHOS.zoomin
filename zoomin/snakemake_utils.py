@@ -1,6 +1,6 @@
 import os
+import json
 import pandas as pd
-from sklearn.feature_selection import VarianceThreshold
 from dotenv import find_dotenv, load_dotenv
 from zoomin import db_access
 
@@ -54,6 +54,7 @@ eucalc_vars_for_mini_db = [
     "eucalc_bld_energy_demand_non_residential_appliances_electricity",
     "eucalc_ccu_capex_unmineable_coal_seams",
     "eucalc_elc_old_capacity_fossil_coal",
+    "eucalc_tra_vehicle_fleet_freight_hdvm_phev_diesel_ei"
 ]
 
 
@@ -84,21 +85,35 @@ def get_climate_vars():
     return return_list
 
 
-def get_collected_vars(priority_level):
+def get_collected_vars(spatial_level):
+    """spatial_level: could be LAU, NUTS3, NUTS2, NUTS0 or with_post_disagg_calc"""
 
-    sql_cmd = f"""SELECT var_name FROM var_details 
-                WHERE 
-                    (var_name NOT LIKE 'eucalc_%%' AND 
-                    var_name NOT LIKE 'cimp_%%' AND 
-                    var_name NOT LIKE 'cproj_%%')
-                    AND priority_level={priority_level}"""
+    if spatial_level in ["LAU", "NUTS3", "NUTS2", "NUTS0"]:
+        original_resolution_id = db_access.get_primary_key("original_resolutions", 
+                                                        {"original_resolution": spatial_level})
+        sql_cmd = f"""SELECT var_name FROM var_details 
+                    WHERE 
+                        (var_name NOT LIKE 'eucalc_%%' AND 
+                        var_name NOT LIKE 'cimp_%%' AND 
+                        var_name NOT LIKE 'cproj_%%')
+                        AND original_resolution_id={original_resolution_id}
+                        AND post_disagg_calculation_eq_for_code IS NULL;"""
+        
+    else:
+        sql_cmd = f"""SELECT var_name FROM var_details 
+                    WHERE 
+                        (var_name NOT LIKE 'eucalc_%%' AND 
+                        var_name NOT LIKE 'cimp_%%' AND 
+                        var_name NOT LIKE 'cproj_%%')
+                        AND post_disagg_calculation_eq_for_code IS NOT NULL;"""
+        
 
     var_names = db_access.get_table(sql_cmd)
 
     return_list = var_names["var_name"]
 
     if (mini_db == 1) & (
-        priority_level not in [1, 2]
+        spatial_level not in ["LAU", "NUTS3"]
     ):  # if its LAU or NUTS3, we need all variables for random forest
         return_list = list(
             set(return_list).intersection(set(collected_vars_for_mini_db))
@@ -107,20 +122,24 @@ def get_collected_vars(priority_level):
     return return_list
 
 
-def get_pathways():
+def get_eucalc_pathways():
     pathways = list(db_access.get_col_values("pathways", "pathway_file_name"))
-    if mini_db == 1:
-        return [pathway for pathway in pathways if pathway.startswith("pt")]
+    return pathways
+
+
+def get_eucalc_vars(var_type):
+
+    if var_type == "disagg":
+        sql_cmd = f"""SELECT var_name FROM var_details 
+                    WHERE 
+                    var_name LIKE 'eucalc_%%' 
+                    AND post_disagg_calculation_eq_for_code IS NULL;"""
+
     else:
-        return [pathway for pathway in pathways if pathway.startswith("de")]
-
-
-def get_eucalc_vars(priority_level):
-
-    sql_cmd = f"""SELECT var_name FROM var_details 
-                WHERE 
-                var_name LIKE 'eucalc_%%' 
-                AND priority_level={priority_level}"""
+        sql_cmd = f"""SELECT var_name FROM var_details 
+                    WHERE 
+                    var_name LIKE 'eucalc_%%' 
+                    AND post_disagg_calculation_eq_for_code IS NOT NULL;"""
 
     var_names = db_access.get_table(sql_cmd)
 
@@ -132,154 +151,53 @@ def get_eucalc_vars(priority_level):
     return return_list
 
 
-def save_predictor_df_for_nuts3():
+def save_predictor_df(spatial_level):
     lau_region_ids = tuple(
         db_access.get_col_values("regions", "id", {"resolution": "LAU"})
     )
 
-    non_point_vars = (
-        "percentage_of_people_very_satisfied_with_public_transport",
-        "percentage_of_people_rather_satisfied_with_public_transport",
-        "percentage_of_people_rather_unsatisfied_with_public_transport",
-        "percentage_of_people_not_at_all_satisfied_with_public_transport",
-        "percentage_of_people_with_unknown_satifactory_level_with_public_transport",
-    )
+    with open(
+        os.path.join(os.path.dirname(__file__), "..", "data", f"predictor_vars_{spatial_level}.json")
+    ) as f:
+        predictor_vars = tuple(json.load(f))
 
-    sql_cmd = f"""SELECT v.var_name, d.value, r.region_code
+    climate_experiment_id  = db_access.get_primary_key("climate_experiments", {"climate_experiment": "RCP4.5"})
+
+    final_df = None
+    for var_name in predictor_vars:
+        print(var_name)
+        if "cproj_" in var_name:
+            sql_cmd = f"""SELECT v.var_name, d.value, r.region_code
                 FROM processed_data d
                 JOIN regions r ON d.region_id = r.id
                 JOIN var_details v ON d.var_detail_id = v.id
                 WHERE region_id IN {lau_region_ids}
-                AND v.var_name NOT IN {non_point_vars}
-                AND v.var_name NOT LIKE 'cimp_%%' 
-                AND v.var_name NOT LIKE 'cproj_%%';"""
-
-    lau_df = db_access.get_table(sql_cmd)
-
-    x_df = None
-    for var_name, sub_df in lau_df.groupby("var_name"):
-        sub_df.drop(columns=["var_name"], inplace=True)
-        sub_df.rename(columns={"value": var_name}, inplace=True)
-
-        if x_df is None:
-            x_df = sub_df
-        else:
-            x_df = pd.merge(x_df, sub_df, on="region_code", how="inner")
-
-    # Isolate the 'region_code' column from data
-    region_code_x = x_df["region_code"]
-    x_df_numeric = x_df.drop("region_code", axis=1)
-
-    # REMOVE 0 Variance data
-    # Create VarianceThreshold object
-    selector = VarianceThreshold()
-
-    # Fit to data and transform the data
-    x_df_reduced = selector.fit_transform(x_df_numeric)
-
-    # Convert the result back to a DataFrame
-    # This step is necessary because the output of VarianceThreshold is a NumPy array
-    x_df_reduced = pd.DataFrame(
-        x_df_reduced, columns=x_df_numeric.columns[selector.get_support()]
-    )
-
-    x_df_reduced["region_code"] = region_code_x
-    x_df_reduced = x_df_reduced.reindex(sorted(x_df_reduced.columns), axis=1)
-
-    x_df_reduced.to_csv(
-        os.path.join(
-            os.path.dirname(__file__), "..", "data", "predictor_df_for_NUTS3.csv"
-        ),
-        index=False,
-    )
-
-
-def save_predictor_df_for_nuts2():
-    lau_region_ids = tuple(
-        db_access.get_col_values("regions", "id", {"resolution": "LAU"})
-    )
-    # non-climate vars
-    non_point_vars = (
-        "percentage_of_people_very_satisfied_with_public_transport",
-        "percentage_of_people_rather_satisfied_with_public_transport",
-        "percentage_of_people_rather_unsatisfied_with_public_transport",
-        "percentage_of_people_not_at_all_satisfied_with_public_transport",
-        "percentage_of_people_with_unknown_satifactory_level_with_public_transport",
-    )
-
-    sql_cmd = f"""SELECT v.var_name, d.value, r.region_code
-                FROM processed_data d
-                JOIN regions r ON d.region_id = r.id
-                JOIN var_details v ON d.var_detail_id = v.id
-                WHERE region_id IN {lau_region_ids}
-                AND v.var_name NOT IN {non_point_vars}
-                AND v.var_name NOT LIKE 'cimp_%%' 
-                AND v.var_name NOT LIKE 'cproj_%%';"""
-
-    lau_df = db_access.get_table(sql_cmd)
-
-    x_df = None
-    for var_name, sub_df in lau_df.groupby("var_name"):
-        sub_df.drop(columns=["var_name"], inplace=True)
-        sub_df.rename(columns={"value": var_name}, inplace=True)
-
-        if x_df is None:
-            x_df = sub_df
-        else:
-            x_df = pd.merge(x_df, sub_df, on="region_code", how="inner")
-
-    # climate vars
-    exclude_vars = (
-        "cproj_annual_mean_temperature_cooling_degree_days",
-        "cproj_annual_minimum_temperature_cooling_degree_days",
-    )
-
-    climate_experiment_id = db_access.get_primary_key(
-        "climate_experiments", {"climate_experiment": "RCP4.5"}
-    )
-
-    sql_cmd = f"""SELECT v.var_name, d.value, r.region_code
-                FROM processed_data d
-                JOIN regions r ON d.region_id = r.id
-                JOIN var_details v ON d.var_detail_id = v.id
-                WHERE region_id IN {lau_region_ids}
-                AND (v.var_name LIKE 'cimp_%%' 
-                OR v.var_name LIKE 'cproj_%%')
-                AND v.var_name NOT IN {exclude_vars}
                 AND d.year=2020
-                AND d.climate_experiment_id={climate_experiment_id};"""
+                AND d.climate_experiment_id={climate_experiment_id}
+                AND v.var_name = '{var_name}';"""
 
-    lau_df = db_access.get_table(sql_cmd)
+        else:
+            sql_cmd = f"""SELECT v.var_name, d.value, r.region_code
+                FROM processed_data d
+                JOIN regions r ON d.region_id = r.id
+                JOIN var_details v ON d.var_detail_id = v.id
+                WHERE region_id IN {lau_region_ids}
+                AND v.var_name = '{var_name}';"""
+        
+        predictor_df = db_access.get_table(sql_cmd)
 
-    for var_name, sub_df in lau_df.groupby("var_name"):
-        sub_df.drop(columns=["var_name"], inplace=True)
-        sub_df.rename(columns={"value": var_name}, inplace=True)
+        predictor_df.drop(columns=["var_name"], inplace=True)
+        predictor_df.rename(columns={"value": var_name}, inplace=True)
 
-        x_df = pd.merge(x_df, sub_df, on="region_code", how="inner")
+        if final_df is None:
+            final_df = predictor_df
+        else:
+            final_df = pd.merge(final_df, predictor_df, on="region_code", how="inner")
 
-    # Isolate the 'region_code' column from data
-    region_code_x = x_df["region_code"]
-    x_df_numeric = x_df.drop("region_code", axis=1)
-
-    # REMOVE 0 Variance data
-    # Create VarianceThreshold object
-    selector = VarianceThreshold()
-
-    # Fit to data and transform the data
-    x_df_reduced = selector.fit_transform(x_df_numeric)
-
-    # Convert the result back to a DataFrame
-    # This step is necessary because the output of VarianceThreshold is a NumPy array
-    x_df_reduced = pd.DataFrame(
-        x_df_reduced, columns=x_df_numeric.columns[selector.get_support()]
-    )
-
-    x_df_reduced["region_code"] = region_code_x
-    x_df_reduced = x_df_reduced.reindex(sorted(x_df_reduced.columns), axis=1)
-
-    x_df_reduced.to_csv(
+    final_df.to_csv(
         os.path.join(
-            os.path.dirname(__file__), "..", "data", "predictor_df_for_NUTS2.csv"
+            os.path.dirname(__file__), "..", "data", f"predictor_df_for_{spatial_level}.csv"
         ),
         index=False,
     )
+    

@@ -1,6 +1,5 @@
 """Functions to help disaggregate values to LAU and populate DB with data."""
 import os
-import pickle
 import numpy as np
 import pandas as pd
 
@@ -46,6 +45,7 @@ def aggregate_data(var_data, var_name, source_resolution, data_type):
             "value": agg_val,
             "var_detail_id": data_group["var_detail_id"].unique().item(),
             "region_code": data_group["region_code"].unique().item(),
+            "proxy_detail_id": data_group["proxy_detail_id"].unique().item(),
         }
 
         # Calculate quality rating
@@ -89,6 +89,7 @@ def aggregate_data(var_data, var_name, source_resolution, data_type):
     )
 
     if len(agg_resolutions) > 0:
+        agg_df_list = []
         for agg_resolution in agg_resolutions:
             agg_df = var_data.copy(deep=True)
 
@@ -125,7 +126,10 @@ def aggregate_data(var_data, var_name, source_resolution, data_type):
                 inplace=True,
             )
 
-            add_to_processed_data(agg_df)
+            agg_df_list.append(agg_df)
+        
+        final_agg_df = pd.concat(agg_df_list)
+        add_to_processed_data(final_agg_df)
 
 
 def distribute_data_equally(
@@ -180,19 +184,14 @@ def distribute_data_equally(
 def perform_random_forest_based_disaggregation(
     var_name,
     data_to_disagg,
+    rf_model,
     disagg_proxy,
-    processing_detail_id,
     source_resolution,
     disaggregation_quality_rating,
 ):
     # TODO: docstrings
     # STEP1: Disaggregate
     # predict values as LAU
-    model_data = get_col_values(
-        "processing_details", "random_forest_model", {"id": processing_detail_id}
-    )
-    rf_model = pickle.loads(model_data[0])
-
     file_name = f"predictor_df_for_{source_resolution}.csv"
     predictor_df = pd.read_csv(
         os.path.join(os.path.dirname(__file__), "..", "data", file_name)
@@ -216,12 +215,26 @@ def perform_random_forest_based_disaggregation(
             "var_details", {"var_name": predictor}
         )
 
-        sql_cmd = f"""SELECT r.region_code, d.quality_rating_id
-                    FROM processed_data d
-                    JOIN regions r ON d.region_id = r.id
-                    WHERE var_detail_id = {predictor_var_detail_id}
-                        AND r.id in {lau_region_ids}
-        """
+        if var_name.startswith("cproj_"):
+
+            climate_experiment_id = get_primary_key(
+                "climate_experiments", {"climate_experiment": "RCP2.6"}
+            )
+            sql_cmd = f"""r.region_code, d.quality_rating_id
+                        FROM processed_data d
+                        JOIN regions r ON d.region_id = r.id
+                        WHERE var_detail_id = {predictor_var_detail_id}
+                            AND r.id in {lau_region_ids}
+                            AND year=2020 
+                            AND climate_experiment_id={climate_experiment_id}"""
+        else:
+            sql_cmd = f"""SELECT r.region_code, d.quality_rating_id
+                        FROM processed_data d
+                        JOIN regions r ON d.region_id = r.id
+                        WHERE var_detail_id = {predictor_var_detail_id}
+                            AND r.id in {lau_region_ids}
+            """
+
         predictor_qr_df = get_table(sql_cmd)
 
         if predictor_qr_df_final is None:
@@ -271,6 +284,7 @@ def perform_random_forest_based_disaggregation(
     # TODO: the values should be integers for integer type data . For example: population
     lau_db_df = final_df.copy(deep=True)
     lau_db_df.drop(columns="region_code", inplace=True)
+
     add_to_processed_data(lau_db_df)
 
     # STEP 2: Aggregate disaggregated data till source_resolution-1 spatial level
@@ -284,12 +298,12 @@ def perform_proxy_based_disaggregation(
     source_resolution,
     disagg_proxy,
     disagg_binary_criteria,
-    disaggregation_quality_rating,
-    country="all",
+    disaggregation_quality_rating
 ):
     # TODO: docstrings
     # STEP1: Disaggregate
-    proxy_data = disagg_utils.solve_proxy_equation(disagg_proxy, country)
+    proxy_data = disagg_utils.solve_proxy_equation(disagg_proxy)
+    
     if len(proxy_data) == 0:
         raise ValueError("Proxy data not found in the database.")
 
@@ -299,7 +313,7 @@ def perform_proxy_based_disaggregation(
 
     if isinstance(disagg_binary_criteria, str):
         proxy_data = disagg_utils.apply_binary_disaggregation_criteria(
-            proxy_data, disagg_binary_criteria, country
+            proxy_data, disagg_binary_criteria
         )
 
     final_df, is_bad_proxy_list = disagg_utils.disaggregate_data(
@@ -308,6 +322,7 @@ def perform_proxy_based_disaggregation(
 
     lau_db_df = final_df.copy(deep=True)
     lau_db_df.drop(columns=["region_code", "match_region_code"], inplace=True)
+
     # TODO: the values should be integers for integer type data . For example: population
     add_to_processed_data(lau_db_df)
 

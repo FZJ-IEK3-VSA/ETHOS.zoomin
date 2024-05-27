@@ -1,4 +1,5 @@
 import os
+import time 
 import traceback
 import json
 from zoomin import disaggregation_manager as disagg_manager
@@ -6,6 +7,8 @@ from zoomin import snakemake_utils as sm_utls
 from zoomin.post_disagg_calculation import perform_post_disagg_calculation
 
 bad_proxy_dict = {}
+
+mini_db = int(os.environ.get("MINI_DB"))
 
 def log_error(error, file_name):
     FILE_PATH = f"error_{file_name}.log"
@@ -18,153 +21,159 @@ rule all:
     input:
         "bad_proxy_log.json"
 
-collected_vars_prio_1 = sm_utls.get_collected_vars(priority_level=1) # LAU data
-collected_vars_prio_2 = sm_utls.get_collected_vars(priority_level=2) # NUTS3 data
-collected_vars_prio_3 = sm_utls.get_collected_vars(priority_level=3) # NUTS2 data
-collected_vars_prio_4 = sm_utls.get_collected_vars(priority_level=4) # NUTS0 data
-collected_vars_prio_5 = sm_utls.get_collected_vars(priority_level=5) # post_disagg_calc
+collected_vars_lau = sm_utls.get_collected_vars("LAU")
+collected_vars_nuts3 = sm_utls.get_collected_vars("NUTS3") 
+collected_vars_nuts2 = sm_utls.get_collected_vars("NUTS2")
+collected_vars_nuts0 = sm_utls.get_collected_vars("NUTS0") 
+collected_vars_post_disagg_calc = sm_utls.get_collected_vars("with_post_disagg_calc")
 
 # Define a wildcard for each parameter
 wildcard_constraints:
     # collected vars
-    wc_collected_var_prio_1 = "|".join(collected_vars_prio_1),
-    wc_collected_var_prio_2 = "|".join(collected_vars_prio_2), 
-    wc_collected_var_prio_3 = "|".join(collected_vars_prio_3), 
-    wc_collected_var_prio_4 = "|".join(collected_vars_prio_4), 
-    wc_collected_var_prio_5 = "|".join(collected_vars_prio_5)
+    wc_collected_var_lau = "|".join(collected_vars_lau),
+    wc_collected_var_nuts3 = "|".join(collected_vars_nuts3), 
+    wc_collected_var_nuts2 = "|".join(collected_vars_nuts2), 
+    wc_collected_var_nuts0 = "|".join(collected_vars_nuts0), 
+    wc_collected_var_post_disagg_calc = "|".join(collected_vars_post_disagg_calc)
 
 # ========================================================
 #############      COLLECTED VARS     ####################
 # ========================================================
 
-# PRIO 1 = LAU data
-rule disaggregate_collected_vars_prio_1:
+# LAU data
+rule disaggregate_collected_vars_lau:
     output:
-        touch("output_logs/{wc_collected_var_prio_1}.log")
+        touch("output_logs/{wc_collected_var_lau}.log")
     run:
         try:
-            bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_prio_1)
+            bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_lau)
 
             if bad_proxy is not None:
-                bad_proxy_dict.update({wildcards.wc_collected_var_prio_1: bad_proxy})
+                bad_proxy_dict.update({wildcards.wc_collected_var_lau: bad_proxy})
 
         except Exception as e:
-            log_error(traceback.format_exc(), wildcards.wc_collected_var_prio_1)
+            log_error(traceback.format_exc(), wildcards.wc_collected_var_lau)
             raise e
 
-rule end_of_prio_1:
+rule end_of_lau:
     input:
         expand("output_logs/{var_name}.log", 
-        var_name=collected_vars_prio_1)
+        var_name=collected_vars_lau)
     output:
-        touch("output_logs/finished_prio_1.log")
+        touch("output_logs/finished_lau.log")
 
 
-# PRIO 2 = NUTS3
+# NUTS3
 rule save_predictor_df_for_nuts3:
     input:
-        "output_logs/finished_prio_1.log"
+        "output_logs/finished_lau.log" if mini_db == 1 else None
     output:
         "../../data/predictor_df_for_NUTS3.csv"
     run:
-        sm_utls.save_predictor_df_for_nuts3()
+        sm_utls.save_predictor_df("NUTS3")
 
 
-rule disaggregate_collected_vars_prio_2:
+rule disaggregate_collected_vars_nuts3:
     input:
-        "../../data/predictor_df_for_NUTS3.csv"
+        "../../data/predictor_df_for_NUTS3.csv",
+        "output_logs/finished_lau.log"
     output:
-        touch("output_logs/{wc_collected_var_prio_2}.log")
+        touch("output_logs/{wc_collected_var_nuts3}.log")
+    params:
+        delay=10  # seconds
     run:
         try:
-            bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_prio_2)
+            bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_nuts3)
 
             if bad_proxy is not None:
-                bad_proxy_dict.update({wildcards.wc_collected_var_prio_2: bad_proxy})
+                bad_proxy_dict.update({wildcards.wc_collected_var_nuts3: bad_proxy})
 
         except Exception as e:
-            log_error(traceback.format_exc(), wildcards.wc_collected_var_prio_2)
+            log_error(traceback.format_exc(), wildcards.wc_collected_var_nuts3)
             raise e
 
-rule end_of_prio_2:
+rule end_of_nuts3:
     input:
         expand("output_logs/{var_name}.log", 
-        var_name=collected_vars_prio_2)
+        var_name=collected_vars_nuts3)
     output:
-        touch("output_logs/finished_prio_2.log")
+        touch("output_logs/finished_nuts3.log")
 
-# PRIO 3 = NUTS2
+# NUTS2
 rule save_predictor_df_for_nuts2:
     input:
-        "output_logs/finished_prio_2.log"
+        "output_logs/finished_nuts3.log" if mini_db == 1 else None
     output:
         "../../data/predictor_df_for_NUTS2.csv"
     run:
-        sm_utls.save_predictor_df_for_nuts2()
+        sm_utls.save_predictor_df("NUTS2")
 
 
-rule disaggregate_collected_vars_prio_3:
+rule disaggregate_collected_vars_nuts2:
     input:
-        "../../data/predictor_df_for_NUTS2.csv"
+        "../../data/predictor_df_for_NUTS2.csv",
+        "output_logs/finished_nuts3.log"
     output:
-        touch("output_logs/{wc_collected_var_prio_3}.log")
+        touch("output_logs/{wc_collected_var_nuts2}.log")
+    params:
+        delay=10  # seconds
     run:
         try:
-            bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_prio_3)
+            bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_nuts2)
 
             if bad_proxy is not None:
-                bad_proxy_dict.update({wildcards.wc_collected_var_prio_3})
+                bad_proxy_dict.update({wildcards.wc_collected_var_nuts2})
 
         except Exception as e:
-            log_error(traceback.format_exc(), wildcards.wc_collected_var_prio_3)
+            log_error(traceback.format_exc(), wildcards.wc_collected_var_nuts2)
             raise e
 
 
-rule end_of_prio_3:
+rule end_of_nuts2:
     input:
         expand("output_logs/{var_name}.log", 
-        var_name=collected_vars_prio_3)
+        var_name=collected_vars_nuts2)
     output:
-        touch("output_logs/finished_prio_3.log")
+        touch("output_logs/finished_nuts2.log")
 
-# PRIO 4
-rule disaggregate_collected_vars_prio_4:
+# NUTS0
+rule disaggregate_collected_vars_nuts0:
     input:
-        "output_logs/finished_prio_3.log"
+        "output_logs/finished_nuts2.log"
     output:
-        touch("output_logs/{wc_collected_var_prio_4}.log")
+        touch("output_logs/{wc_collected_var_nuts0}.log")
     run:
         try:
-            bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_prio_4)
+            bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_nuts0)
 
             if bad_proxy is not None:
-                bad_proxy_dict.update({wildcards.wc_collected_var_prio_4: bad_proxy})
+                bad_proxy_dict.update({wildcards.wc_collected_var_nuts0: bad_proxy})
 
         except Exception as e:
-            log_error(traceback.format_exc(), wildcards.wc_collected_var_prio_4)
+            log_error(traceback.format_exc(), wildcards.wc_collected_var_nuts0)
             raise e
 
-rule end_of_prio_4:
+rule end_of_nuts0:
     input:
         expand("output_logs/{var_name}.log", 
-        var_name=collected_vars_prio_4)
+        var_name=collected_vars_nuts0)
     output:
-        touch("output_logs/finished_prio_4.log")
+        touch("output_logs/finished_nuts0.log")
 
 
 # POST DISAGGREGATION CALCULATION 
 
 rule calculate_collected_vars_post_disaggregation:
     input:
-        "output_logs/finished_prio_4.log"
+        "output_logs/finished_nuts0.log"
     output:
-        touch("output_logs/{wc_collected_var_prio_5}.log")
+        touch("output_logs/{wc_collected_var_post_disagg_calc}.log")
     run:
         try:
-            perform_post_disagg_calculation(wildcards.wc_collected_var_prio_5, "collected_var")
+            perform_post_disagg_calculation(wildcards.wc_collected_var_post_disagg_calc, "collected_var")
 
         except Exception as e:
-            log_error(traceback.format_exc(), wildcards.wc_collected_var_prio_5)
+            log_error(traceback.format_exc(), wildcards.wc_collected_var_post_disagg_calc)
             raise e
 
 #================================================================================================
@@ -172,7 +181,7 @@ rule calculate_collected_vars_post_disaggregation:
 rule final:
     input:
         expand("output_logs/{var_name}.log", 
-                var_name=collected_vars_prio_5)
+                var_name=collected_vars_post_disagg_calc)
     output:
         "bad_proxy_log.json"
     run:

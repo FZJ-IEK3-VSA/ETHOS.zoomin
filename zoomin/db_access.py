@@ -33,47 +33,37 @@ db_pool = pool.SimpleConnectionPool(
     database=db_name,
 )
 
-
 def with_db_connection() -> Any:
     """Wrap a set up-tear down Postgres connection while providing a cursor object to make queries with."""
 
     def wrap(func_call: Callable) -> Any:
         @wraps(func_call)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            retry_count = 0
-            max_retries = 3
-            base_delay = 20
-            while True:
-                try:
-                    # Get connection from the pool
-                    connection = db_pool.getconn()
-                    if connection is None:
-                        raise Exception("Failed to get DB connection from the pool")
+            
+            try:
+                # Get connection from the pool
+                connection = db_pool.getconn()
+                if connection is None:
+                    raise Exception("Failed to get DB connection from the pool")
 
-                    with connection:
-                        with connection.cursor() as cursor:
-                            return_val = func_call(cursor, *args, **kwargs)
+                with connection:
+                    with connection.cursor() as cursor:
+                        return_val = func_call(cursor, *args, **kwargs)
 
-                    # Return the connection to the pool
-                    db_pool.putconn(connection)
+                # Return the connection to the pool
+                db_pool.putconn(connection)
 
-                    # return value
-                    return return_val
+                # return value
+                return return_val
 
-                except Exception as error:
-                    # Return the connection to the pool in case of error
-                    if connection is not None:
-                        db_pool.putconn(connection, close=True)
+            except Exception as error:
+                # Return the connection to the pool in case of error
+                if connection is not None:
+                    db_pool.putconn(connection, close=True)
 
-                    if (type(error).__name__ == "OperationalError") and (
-                        retry_count < max_retries
-                    ):
-                        print("retrying db access =================================")
-                        wait_time = base_delay * (2**retry_count)
-                        time.sleep(wait_time)
-                        retry_count += 1
-                    else:
-                        raise error
+                # Log more details about the error
+                print(f"Attempting to connect to the database for function {func_call.__name__} with args {args} and kwargs {kwargs}")
+                raise error
 
         return wrapper
 
@@ -145,7 +135,15 @@ def get_table(cursor: Any, sql_cmd: str) -> pd.DataFrame:
     engine = get_db_engine()
     engine_conn = engine.connect()
 
-    table_df = pd.read_sql_query(sql=sql_cmd, con=engine_conn)
+    sql_iterator = pd.read_sql_query(sql=sql_cmd, con=engine_conn, chunksize=10)
+
+    chunks = []
+    for chunk in sql_iterator:
+
+        chunks.append(chunk)
+
+    # Concatenate all processed chunks into a single DataFrame
+    table_df = pd.concat(chunks, ignore_index=True)
 
     return table_df
 
@@ -153,16 +151,11 @@ def get_table(cursor: Any, sql_cmd: str) -> pd.DataFrame:
 @with_db_connection()
 def get_regions(
     cursor: Any,
-    resolution: str,
-    country: Optional[str] = "all",
+    resolution: str
 ) -> pd.DataFrame:
     """Return dataframe of region codes and their primary keys corresponding to the specified resolution from the DB."""
     # Construct sql command
     sql_cmd = f"SELECT id, region_code FROM regions WHERE resolution='{resolution}'"
-
-    # subset on a country
-    if country != "all":
-        sql_cmd = f"{sql_cmd} AND region_code LIKE '{country}%%'"
 
     # get table
     regions_df = get_table(sql_cmd=sql_cmd)
@@ -171,7 +164,7 @@ def get_regions(
 
 
 @with_db_connection()
-def get_processed_lau_data(cursor: Any, var_name: str, country) -> pd.DataFrame:
+def get_processed_lau_data(cursor: Any, var_name: str) -> pd.DataFrame:
     """Return dataframe from processed_data table at LAU level."""  # TODO: update docstring
 
     try:
@@ -195,7 +188,7 @@ def get_processed_lau_data(cursor: Any, var_name: str, country) -> pd.DataFrame:
     except:
         raise ValueError(f"{var_name} not found. Check your proxy equation")
 
-    regions_df = get_regions("LAU", country=country)
+    regions_df = get_regions("LAU")
 
     final_df = pd.merge(
         data_df, regions_df, left_on="region_id", right_on="id", how="inner"
@@ -288,11 +281,11 @@ def _psql_insert_copy(table: Any, conn: Any, keys: list, data_iter: Iterable) ->
 
 
 def add_to_processed_data(db_ready_df: pd.DataFrame) -> None:
-    """Add the data to either raw_data or processed_data table."""
+    """Add the data to processed_data table."""
     if len(db_ready_df) > 10000:
         db_uri = get_db_uri()
 
-        ddf = dd.from_pandas(db_ready_df, npartitions=100)
+        ddf = dd.from_pandas(db_ready_df, npartitions=10)
 
         ddf.to_sql(
             name="processed_data",

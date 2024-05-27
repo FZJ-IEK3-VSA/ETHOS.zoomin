@@ -123,14 +123,10 @@ def perform_post_disagg_calculation(
 
         return result_df
 
-    processing_detail_id = get_col_values(
-        "var_details", "processing_detail_id", {"var_name": var_name}
-    )
-
     equation = get_col_values(
-        "processing_details",
+        "var_details",
         "post_disagg_calculation_eq_for_code",
-        {"id": processing_detail_id},
+        {"var_name": var_name},
     )
 
     eq_parts = equation.split("|")
