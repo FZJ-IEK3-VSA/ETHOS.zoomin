@@ -1,0 +1,20 @@
+#To delete collected vars
+
+from zoomin.db_access import with_db_connection, get_table
+
+sql_cmd = f"""SELECT id FROM var_details 
+                    WHERE 
+                        (var_name NOT LIKE 'eucalc_%%' AND 
+                        var_name NOT LIKE 'cimp_%%' AND 
+                        var_name NOT LIKE 'cproj_%%')"""
+        
+
+var_ids = tuple(get_table(sql_cmd)["id"].values)
+
+@with_db_connection()
+def clear_data(cursor):
+    cursor.execute(
+        f"DELETE FROM processed_data WHERE var_detail_id in {var_ids}"
+    )
+
+clear_data()
