@@ -44,7 +44,7 @@ def process_climate_var(climate_var_detail) -> None:
         """
         var_data = get_table(sql_cmd)
 
-    disaggregation_quality_rating = 3 # because all climate data is given this rating 
+    disaggregation_quality_rating = 3  # because all climate data is given this rating
 
     source_resolution = "NUTS3"  # because all climate data is at NUTS3
 
@@ -61,7 +61,7 @@ def process_climate_var(climate_var_detail) -> None:
             "value",
             "quality_rating_id",
             "year",
-            "proxy_detail_id"
+            "proxy_detail_id",
         ]
     ].copy()
 
@@ -76,7 +76,7 @@ def process_climate_var(climate_var_detail) -> None:
             "value",
             "quality_rating_id",
             "year",
-            "proxy_detail_id"
+            "proxy_detail_id",
         ]
     ].copy()
 
@@ -92,14 +92,16 @@ def process_climate_var(climate_var_detail) -> None:
 def process_collected_var(var_name) -> None:
     """Take processed and saved data, disaggregate to LAU regions and add to the database."""  # TODO: docstring
 
-    var_details_row = get_table(f"SELECT id, original_resolution_id from var_details where var_name='{var_name}'")
+    var_details_row = get_table(
+        f"SELECT id, original_resolution_id from var_details where var_name='{var_name}'"
+    )
     var_detail_id = var_details_row["id"][0]
     original_resolution_id = var_details_row["original_resolution_id"][0]
 
     source_resolution = get_col_values(
         "original_resolutions", "original_resolution", {"id": original_resolution_id}
     )
-    
+
     sql_cmd = f"""SELECT r.region_code, d.region_id, d.var_detail_id, d.value, d.quality_rating_id, d.year, d.proxy_detail_id
                     FROM staged_collected_data d
                     JOIN regions r ON d.region_id = r.id
@@ -113,7 +115,14 @@ def process_collected_var(var_name) -> None:
 
     # STEP 2: Aggregate staged data to higher spatial levels
     data_to_agg = var_data[
-        ["region_code", "var_detail_id", "value", "quality_rating_id", "year", "proxy_detail_id"]
+        [
+            "region_code",
+            "var_detail_id",
+            "value",
+            "quality_rating_id",
+            "year",
+            "proxy_detail_id",
+        ]
     ].copy()
 
     disagg.aggregate_data(data_to_agg, var_name, source_resolution, "staged_data")
@@ -122,14 +131,18 @@ def process_collected_var(var_name) -> None:
     if source_resolution != "LAU":
         proxy_detail_id = data_to_agg["proxy_detail_id"][0].item()
 
-        proxy_details_row = get_table(f"""SELECT disaggregation_proxy, 
+        proxy_details_row = get_table(
+            f"""SELECT disaggregation_proxy, 
                                       disaggregation_quality_rating,
                                       disaggregation_binary_criteria,
                                       random_forest_model
-                                      from proxy_details where id={proxy_detail_id}""")
-        
+                                      from proxy_details where id={proxy_detail_id}"""
+        )
+
         disagg_proxy = proxy_details_row["disaggregation_proxy"][0]
-        disaggregation_quality_rating = proxy_details_row["disaggregation_quality_rating"][0]
+        disaggregation_quality_rating = proxy_details_row[
+            "disaggregation_quality_rating"
+        ][0]
 
         if isinstance(disagg_proxy, str):
             if disagg_proxy == "no proxy, same value all regions":
@@ -140,7 +153,7 @@ def process_collected_var(var_name) -> None:
                         "value",
                         "quality_rating_id",
                         "year",
-                        "proxy_detail_id"
+                        "proxy_detail_id",
                     ]
                 ].copy()
 
@@ -153,7 +166,13 @@ def process_collected_var(var_name) -> None:
 
             elif "Disaggregation using random forest model." in disagg_proxy:
                 data_to_disagg = var_data[
-                    ["region_code", "var_detail_id", "quality_rating_id", "year", "proxy_detail_id"]
+                    [
+                        "region_code",
+                        "var_detail_id",
+                        "quality_rating_id",
+                        "year",
+                        "proxy_detail_id",
+                    ]
                 ].copy()
 
                 rf_model_data = proxy_details_row["random_forest_model"][0]
@@ -177,11 +196,13 @@ def process_collected_var(var_name) -> None:
                         "value",
                         "quality_rating_id",
                         "year",
-                        "proxy_detail_id"
+                        "proxy_detail_id",
                     ]
                 ].copy()
 
-                disagg_binary_criteria = proxy_details_row["disaggregation_binary_criteria"][0]
+                disagg_binary_criteria = proxy_details_row[
+                    "disaggregation_binary_criteria"
+                ][0]
 
                 bad_proxy = disagg.perform_proxy_based_disaggregation(
                     data_to_disagg,
@@ -239,7 +260,7 @@ def process_eucalc_var(var_name, pathway_name, year) -> None:
             "value",
             "quality_rating_id",
             "year",
-            "proxy_detail_id"
+            "proxy_detail_id",
         ]
     ].copy()
 

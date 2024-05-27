@@ -69,7 +69,6 @@ def solve_dfs(df_1, df_2, operator, calc_var_type):
 
 
 def add_vars(equation, calc_var_type, pathway_name):
-
     vars_to_add = equation.split("+")
 
     for i, var_name in enumerate(vars_to_add):

@@ -33,13 +33,13 @@ db_pool = pool.SimpleConnectionPool(
     database=db_name,
 )
 
+
 def with_db_connection() -> Any:
     """Wrap a set up-tear down Postgres connection while providing a cursor object to make queries with."""
 
     def wrap(func_call: Callable) -> Any:
         @wraps(func_call)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            
             try:
                 # Get connection from the pool
                 connection = db_pool.getconn()
@@ -62,7 +62,9 @@ def with_db_connection() -> Any:
                     db_pool.putconn(connection, close=True)
 
                 # Log more details about the error
-                print(f"Attempting to connect to the database for function {func_call.__name__} with args {args} and kwargs {kwargs}")
+                print(
+                    f"Attempting to connect to the database for function {func_call.__name__} with args {args} and kwargs {kwargs}"
+                )
                 raise error
 
         return wrapper
@@ -139,7 +141,6 @@ def get_table(cursor: Any, sql_cmd: str) -> pd.DataFrame:
 
     chunks = []
     for chunk in sql_iterator:
-
         chunks.append(chunk)
 
     # Concatenate all processed chunks into a single DataFrame
@@ -149,10 +150,7 @@ def get_table(cursor: Any, sql_cmd: str) -> pd.DataFrame:
 
 
 @with_db_connection()
-def get_regions(
-    cursor: Any,
-    resolution: str
-) -> pd.DataFrame:
+def get_regions(cursor: Any, resolution: str) -> pd.DataFrame:
     """Return dataframe of region codes and their primary keys corresponding to the specified resolution from the DB."""
     # Construct sql command
     sql_cmd = f"SELECT id, region_code FROM regions WHERE resolution='{resolution}'"
@@ -171,7 +169,6 @@ def get_processed_lau_data(cursor: Any, var_name: str) -> pd.DataFrame:
         _fk_var_id = get_primary_key("var_details", {"var_name": var_name})
 
         if var_name.startswith("cproj_"):
-
             climate_experiment_id = get_primary_key(
                 "climate_experiments", {"climate_experiment": "RCP2.6"}
             )

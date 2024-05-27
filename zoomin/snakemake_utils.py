@@ -54,7 +54,7 @@ eucalc_vars_for_mini_db = [
     "eucalc_bld_energy_demand_non_residential_appliances_electricity",
     "eucalc_ccu_capex_unmineable_coal_seams",
     "eucalc_elc_old_capacity_fossil_coal",
-    "eucalc_tra_vehicle_fleet_freight_hdvm_phev_diesel_ei"
+    "eucalc_tra_vehicle_fleet_freight_hdvm_phev_diesel_ei",
 ]
 
 
@@ -74,7 +74,6 @@ def get_climate_vars():
     var_names = db_access.get_table(sql_cmd)
 
     for var_name in var_names["var_name"]:
-
         for year in years:
             if "cproj_" in var_name:
                 for year in years:
@@ -89,8 +88,9 @@ def get_collected_vars(spatial_level):
     """spatial_level: could be LAU, NUTS3, NUTS2, NUTS0 or with_post_disagg_calc"""
 
     if spatial_level in ["LAU", "NUTS3", "NUTS2", "NUTS0"]:
-        original_resolution_id = db_access.get_primary_key("original_resolutions", 
-                                                        {"original_resolution": spatial_level})
+        original_resolution_id = db_access.get_primary_key(
+            "original_resolutions", {"original_resolution": spatial_level}
+        )
         sql_cmd = f"""SELECT var_name FROM var_details 
                     WHERE 
                         (var_name NOT LIKE 'eucalc_%%' AND 
@@ -98,7 +98,7 @@ def get_collected_vars(spatial_level):
                         var_name NOT LIKE 'cproj_%%')
                         AND original_resolution_id={original_resolution_id}
                         AND post_disagg_calculation_eq_for_code IS NULL;"""
-        
+
     else:
         sql_cmd = f"""SELECT var_name FROM var_details 
                     WHERE 
@@ -106,7 +106,6 @@ def get_collected_vars(spatial_level):
                         var_name NOT LIKE 'cimp_%%' AND 
                         var_name NOT LIKE 'cproj_%%')
                         AND post_disagg_calculation_eq_for_code IS NOT NULL;"""
-        
 
     var_names = db_access.get_table(sql_cmd)
 
@@ -128,7 +127,6 @@ def get_eucalc_pathways():
 
 
 def get_eucalc_vars(var_type):
-
     if var_type == "disagg":
         sql_cmd = f"""SELECT var_name FROM var_details 
                     WHERE 
@@ -157,11 +155,18 @@ def save_predictor_df(spatial_level):
     )
 
     with open(
-        os.path.join(os.path.dirname(__file__), "..", "data", f"predictor_vars_{spatial_level}.json")
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "data",
+            f"predictor_vars_{spatial_level}.json",
+        )
     ) as f:
         predictor_vars = tuple(json.load(f))
 
-    climate_experiment_id  = db_access.get_primary_key("climate_experiments", {"climate_experiment": "RCP4.5"})
+    climate_experiment_id = db_access.get_primary_key(
+        "climate_experiments", {"climate_experiment": "RCP4.5"}
+    )
 
     final_df = None
     for var_name in predictor_vars:
@@ -183,7 +188,7 @@ def save_predictor_df(spatial_level):
                 JOIN var_details v ON d.var_detail_id = v.id
                 WHERE region_id IN {lau_region_ids}
                 AND v.var_name = '{var_name}';"""
-        
+
         predictor_df = db_access.get_table(sql_cmd)
 
         predictor_df.drop(columns=["var_name"], inplace=True)
@@ -196,8 +201,10 @@ def save_predictor_df(spatial_level):
 
     final_df.to_csv(
         os.path.join(
-            os.path.dirname(__file__), "..", "data", f"predictor_df_for_{spatial_level}.csv"
+            os.path.dirname(__file__),
+            "..",
+            "data",
+            f"predictor_df_for_{spatial_level}.csv",
         ),
         index=False,
     )
-    

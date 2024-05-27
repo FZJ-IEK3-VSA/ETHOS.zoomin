@@ -127,7 +127,7 @@ def aggregate_data(var_data, var_name, source_resolution, data_type):
             )
 
             agg_df_list.append(agg_df)
-        
+
         final_agg_df = pd.concat(agg_df_list)
         add_to_processed_data(final_agg_df)
 
@@ -216,7 +216,6 @@ def perform_random_forest_based_disaggregation(
         )
 
         if var_name.startswith("cproj_"):
-
             climate_experiment_id = get_primary_key(
                 "climate_experiments", {"climate_experiment": "RCP2.6"}
             )
@@ -298,12 +297,12 @@ def perform_proxy_based_disaggregation(
     source_resolution,
     disagg_proxy,
     disagg_binary_criteria,
-    disaggregation_quality_rating
+    disaggregation_quality_rating,
 ):
     # TODO: docstrings
     # STEP1: Disaggregate
     proxy_data = disagg_utils.solve_proxy_equation(disagg_proxy)
-    
+
     if len(proxy_data) == 0:
         raise ValueError("Proxy data not found in the database.")
 

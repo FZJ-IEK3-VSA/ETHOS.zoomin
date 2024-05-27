@@ -21,14 +21,13 @@ def solve_dfs(df_1, df_2, operator):
     result["value_x"] = (result["value_x"] - result["value_x"].min()) / (
         result["value_x"].max() - result["value_x"].min()
     )
-    
+
     result["value_y"] = (result["value_y"] - result["value_y"].min()) / (
         result["value_y"].max() - result["value_y"].min()
     )
 
     result["value_x"].replace([np.inf, np.nan], 0, inplace=True)
     result["value_y"].replace([np.inf, np.nan], 0, inplace=True)
-
 
     if operator == "+":
         result["value"] = result["value_x"] + result["value_y"]
@@ -188,9 +187,7 @@ def match_source_target_resolutions(
     return proxy_data
 
 
-def apply_binary_disaggregation_criteria(
-    proxy_data, binary_disaggregation_criteria
-):
+def apply_binary_disaggregation_criteria(proxy_data, binary_disaggregation_criteria):
     # TODO: docstring
     """set the values in the value column of proxy_data to 0 for those region_ids where the corresponding value in the result dataframe is less than the threshold."""
     out_proxy_data = proxy_data.copy()
