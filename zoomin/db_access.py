@@ -137,7 +137,7 @@ def get_table(cursor: Any, sql_cmd: str) -> pd.DataFrame:
     engine = get_db_engine()
     engine_conn = engine.connect()
 
-    sql_iterator = pd.read_sql_query(sql=sql_cmd, con=engine_conn, chunksize=10)
+    sql_iterator = pd.read_sql_query(sql=sql_cmd, con=engine_conn, chunksize=5)
 
     chunks = []
     for chunk in sql_iterator:

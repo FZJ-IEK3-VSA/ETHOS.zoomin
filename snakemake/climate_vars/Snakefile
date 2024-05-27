@@ -4,11 +4,19 @@ import json
 from zoomin import disaggregation_manager as disagg_manager
 from zoomin import snakemake_utils as sm_utls
 from zoomin.post_disagg_calculation import perform_post_disagg_calculation
+from dotenv import load_dotenv, find_dotenv
+
+# find .env automagically by walking up directories until it's found
+dotenv_path = find_dotenv()
+# load up the entries as environment variables
+load_dotenv(dotenv_path)
+
+db_name = os.environ.get("DB_NAME")
 
 bad_proxy_dict = {}
 
 def log_error(error, file_name):
-    FILE_PATH = f"error_{file_name}.log"
+    FILE_PATH = f"output_logs/{db_name}/error_{file_name}.log"
 
     with open(FILE_PATH, 'w') as f:
         print(error)
@@ -23,7 +31,8 @@ climate_vars = sm_utls.get_climate_vars()
 # Define a wildcard for each parameter
 wildcard_constraints:
     # climate vars 
-    wc_climate_var_detail = "|".join(climate_vars)
+    wc_climate_var_detail = "|".join(climate_vars),
+    wc_db_name = db_name
 
 # =========================================================================
 #############      CLIMATE VARS DISAGGREGATION       ####################
@@ -31,7 +40,7 @@ wildcard_constraints:
 
 rule disaggregate_climate_vars:
     output:
-        touch("output_logs/{wc_climate_var_detail}.log")
+        touch("output_logs/{wc_db_name}/{wc_climate_var_detail}.log")
     run:
         try:
             disagg_manager.process_climate_var(wildcards.wc_climate_var_detail)
@@ -44,7 +53,8 @@ rule disaggregate_climate_vars:
 
 rule final:
     input:
-        expand("output_logs/{var_name}.log", 
+        expand("output_logs/{db_name}/{var_name}.log", 
+                db_name=db_name,
                 var_name=climate_vars)
     output:
         "bad_proxy_log.json"

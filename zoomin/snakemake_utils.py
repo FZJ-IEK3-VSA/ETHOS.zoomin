@@ -10,6 +10,7 @@ dotenv_path = find_dotenv()
 load_dotenv(dotenv_path)
 
 mini_db = int(os.environ.get("MINI_DB"))
+db_name = os.environ.get("DB_NAME")
 
 collected_vars_for_mini_db = [
     "population",
@@ -170,7 +171,6 @@ def save_predictor_df(spatial_level):
 
     final_df = None
     for var_name in predictor_vars:
-        print(var_name)
         if "cproj_" in var_name:
             sql_cmd = f"""SELECT v.var_name, d.value, r.region_code
                 FROM processed_data d
@@ -204,7 +204,7 @@ def save_predictor_df(spatial_level):
             os.path.dirname(__file__),
             "..",
             "data",
-            f"predictor_df_for_{spatial_level}.csv",
+            f"predictor_df_for_{spatial_level}_{db_name}.csv",
         ),
         index=False,
     )

@@ -2,6 +2,7 @@
 import os
 import numpy as np
 import pandas as pd
+from dotenv import load_dotenv, find_dotenv
 
 from zoomin.db_access import (
     get_regions,
@@ -11,6 +12,13 @@ from zoomin.db_access import (
     get_table,
 )
 from zoomin import disaggregation_utils as disagg_utils
+
+# find .env automagically by walking up directories until it's found
+dotenv_path = find_dotenv()
+# load up the entries as environment variables
+load_dotenv(dotenv_path)
+
+db_name = os.environ.get("DB_NAME")
 
 # number of chars to consider based on a resolution
 char_dict = {"NUTS3": 5, "NUTS2": 4, "NUTS1": 3, "NUTS0": 2}
@@ -192,7 +200,7 @@ def perform_random_forest_based_disaggregation(
     # TODO: docstrings
     # STEP1: Disaggregate
     # predict values as LAU
-    file_name = f"predictor_df_for_{source_resolution}.csv"
+    file_name = f"predictor_df_for_{source_resolution}_{db_name}.csv"
     predictor_df = pd.read_csv(
         os.path.join(os.path.dirname(__file__), "..", "data", file_name)
     )

@@ -5,13 +5,21 @@ import json
 from zoomin import disaggregation_manager as disagg_manager
 from zoomin import snakemake_utils as sm_utls
 from zoomin.post_disagg_calculation import perform_post_disagg_calculation
+from dotenv import load_dotenv, find_dotenv
+
+# find .env automagically by walking up directories until it's found
+dotenv_path = find_dotenv()
+# load up the entries as environment variables
+load_dotenv(dotenv_path)
+
+db_name = os.environ.get("DB_NAME")
 
 bad_proxy_dict = {}
 
 mini_db = int(os.environ.get("MINI_DB"))
 
 def log_error(error, file_name):
-    FILE_PATH = f"error_{file_name}.log"
+    FILE_PATH = f"output_logs/{db_name}/error_{file_name}.log"
 
     with open(FILE_PATH, 'w') as f:
         print(error)
@@ -34,7 +42,8 @@ wildcard_constraints:
     wc_collected_var_nuts3 = "|".join(collected_vars_nuts3), 
     wc_collected_var_nuts2 = "|".join(collected_vars_nuts2), 
     wc_collected_var_nuts0 = "|".join(collected_vars_nuts0), 
-    wc_collected_var_post_disagg_calc = "|".join(collected_vars_post_disagg_calc)
+    wc_collected_var_post_disagg_calc = "|".join(collected_vars_post_disagg_calc),
+    wc_db_name = db_name
 
 # ========================================================
 #############      COLLECTED VARS     ####################
@@ -43,7 +52,7 @@ wildcard_constraints:
 # LAU data
 rule disaggregate_collected_vars_lau:
     output:
-        touch("output_logs/{wc_collected_var_lau}.log")
+        touch("output_logs/{wc_db_name}/{wc_collected_var_lau}.log")
     run:
         try:
             bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_lau)
@@ -57,28 +66,29 @@ rule disaggregate_collected_vars_lau:
 
 rule end_of_lau:
     input:
-        expand("output_logs/{var_name}.log", 
+        expand("output_logs/{db_name}/{var_name}.log", 
+        db_name=db_name,
         var_name=collected_vars_lau)
     output:
-        touch("output_logs/finished_lau.log")
+        touch("output_logs/{wc_db_name}/finished_lau.log")
 
 
 # NUTS3
 rule save_predictor_df_for_nuts3:
     input:
-        "output_logs/finished_lau.log" if mini_db == 1 else None
+        f"output_logs/{db_name}/finished_lau.log" #if mini_db == 1 else None
     output:
-        "../../data/predictor_df_for_NUTS3.csv"
+        f"../../data/predictor_df_for_NUTS3_{db_name}.csv"
     run:
         sm_utls.save_predictor_df("NUTS3")
 
 
 rule disaggregate_collected_vars_nuts3:
     input:
-        "../../data/predictor_df_for_NUTS3.csv",
-        "output_logs/finished_lau.log"
+        f"../../data/predictor_df_for_NUTS3_{db_name}.csv",
+        f"output_logs/{db_name}/finished_lau.log"
     output:
-        touch("output_logs/{wc_collected_var_nuts3}.log")
+        touch("output_logs/{wc_db_name}/{wc_collected_var_nuts3}.log")
     params:
         delay=10  # seconds
     run:
@@ -94,27 +104,28 @@ rule disaggregate_collected_vars_nuts3:
 
 rule end_of_nuts3:
     input:
-        expand("output_logs/{var_name}.log", 
+        expand("output_logs/{db_name}/{var_name}.log", 
+        db_name=db_name,
         var_name=collected_vars_nuts3)
     output:
-        touch("output_logs/finished_nuts3.log")
+        touch("output_logs/{wc_db_name}/finished_nuts3.log")
 
 # NUTS2
 rule save_predictor_df_for_nuts2:
     input:
-        "output_logs/finished_nuts3.log" if mini_db == 1 else None
+        f"output_logs/{db_name}/finished_nuts3.log" #if mini_db == 1 else None
     output:
-        "../../data/predictor_df_for_NUTS2.csv"
+        f"../../data/predictor_df_for_NUTS2_{db_name}.csv"
     run:
         sm_utls.save_predictor_df("NUTS2")
 
 
 rule disaggregate_collected_vars_nuts2:
     input:
-        "../../data/predictor_df_for_NUTS2.csv",
-        "output_logs/finished_nuts3.log"
+        f"../../data/predictor_df_for_NUTS2_{db_name}.csv",
+        f"output_logs/{db_name}/finished_nuts3.log"
     output:
-        touch("output_logs/{wc_collected_var_nuts2}.log")
+        touch("output_logs/{wc_db_name}/{wc_collected_var_nuts2}.log")
     params:
         delay=10  # seconds
     run:
@@ -131,17 +142,18 @@ rule disaggregate_collected_vars_nuts2:
 
 rule end_of_nuts2:
     input:
-        expand("output_logs/{var_name}.log", 
+        expand("output_logs/{db_name}/{var_name}.log", 
+        db_name=db_name,
         var_name=collected_vars_nuts2)
     output:
-        touch("output_logs/finished_nuts2.log")
+        touch("output_logs/{wc_db_name}/finished_nuts2.log")
 
 # NUTS0
 rule disaggregate_collected_vars_nuts0:
     input:
-        "output_logs/finished_nuts2.log"
+        f"output_logs/{db_name}/finished_nuts2.log"
     output:
-        touch("output_logs/{wc_collected_var_nuts0}.log")
+        touch("output_logs/{wc_db_name}/{wc_collected_var_nuts0}.log")
     run:
         try:
             bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_nuts0)
@@ -155,19 +167,20 @@ rule disaggregate_collected_vars_nuts0:
 
 rule end_of_nuts0:
     input:
-        expand("output_logs/{var_name}.log", 
+        expand("output_logs/{db_name}/{var_name}.log", 
+        db_name=db_name,
         var_name=collected_vars_nuts0)
     output:
-        touch("output_logs/finished_nuts0.log")
+        touch("output_logs/{wc_db_name}/finished_nuts0.log")
 
 
 # POST DISAGGREGATION CALCULATION 
 
 rule calculate_collected_vars_post_disaggregation:
     input:
-        "output_logs/finished_nuts0.log"
+        f"output_logs/{db_name}/finished_nuts0.log"
     output:
-        touch("output_logs/{wc_collected_var_post_disagg_calc}.log")
+        touch("output_logs/{wc_db_name}/{wc_collected_var_post_disagg_calc}.log")
     run:
         try:
             perform_post_disagg_calculation(wildcards.wc_collected_var_post_disagg_calc, "collected_var")
@@ -180,7 +193,8 @@ rule calculate_collected_vars_post_disaggregation:
 
 rule final:
     input:
-        expand("output_logs/{var_name}.log", 
+        expand("output_logs/{db_name}/{var_name}.log", 
+                db_name=db_name,
                 var_name=collected_vars_post_disagg_calc)
     output:
         "bad_proxy_log.json"
