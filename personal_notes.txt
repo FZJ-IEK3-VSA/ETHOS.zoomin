@@ -1,0 +1,18 @@
+#To delete collected vars
+
+from zoomin.db_access import with_db_connection, get_table
+
+
+@with_db_connection()
+def clear_data(cursor):
+    cursor.execute(
+        DELETE FROM processed_data
+            WHERE var_detail_id IN (
+                SELECT id FROM var_details
+                WHERE var_name NOT LIKE 'eucalc_%%'
+                AND var_name NOT LIKE 'cimp_%%'
+                AND var_name NOT LIKE 'cproj_%%'
+            );
+    )
+
+clear_data()

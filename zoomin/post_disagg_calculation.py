@@ -69,7 +69,6 @@ def solve_dfs(df_1, df_2, operator, calc_var_type):
 
 
 def add_vars(equation, calc_var_type, pathway_name):
-
     vars_to_add = equation.split("+")
 
     for i, var_name in enumerate(vars_to_add):
@@ -123,14 +122,10 @@ def perform_post_disagg_calculation(
 
         return result_df
 
-    processing_detail_id = get_col_values(
-        "var_details", "processing_detail_id", {"var_name": var_name}
-    )
-
     equation = get_col_values(
-        "processing_details",
+        "var_details",
         "post_disagg_calculation_eq_for_code",
-        {"id": processing_detail_id},
+        {"var_name": var_name},
     )
 
     eq_parts = equation.split("|")

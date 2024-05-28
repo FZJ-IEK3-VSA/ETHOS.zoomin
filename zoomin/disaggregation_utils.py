@@ -21,9 +21,13 @@ def solve_dfs(df_1, df_2, operator):
     result["value_x"] = (result["value_x"] - result["value_x"].min()) / (
         result["value_x"].max() - result["value_x"].min()
     )
+
     result["value_y"] = (result["value_y"] - result["value_y"].min()) / (
         result["value_y"].max() - result["value_y"].min()
     )
+
+    result["value_x"].replace([np.inf, np.nan], 0, inplace=True)
+    result["value_y"].replace([np.inf, np.nan], 0, inplace=True)
 
     if operator == "+":
         result["value"] = result["value_x"] + result["value_y"]
@@ -65,7 +69,7 @@ def solve_dfs(df_1, df_2, operator):
     return result
 
 
-def add_vars(equation: str, country):
+def add_vars(equation: str):
     """#TODO: doctrings
     The equation allows for construction of complex proxies.
      * Ex.: "population/statistical area" #TODO: more examples with |s
@@ -73,7 +77,7 @@ def add_vars(equation: str, country):
     proxy_vars_ids = equation.split("+")
 
     for i, var_id in enumerate(proxy_vars_ids):
-        var_data = get_processed_lau_data(var_id, country)
+        var_data = get_processed_lau_data(var_id)
 
         if i == 0:
             result = var_data
@@ -84,36 +88,36 @@ def add_vars(equation: str, country):
     return result
 
 
-def divide_vars(equation: str, country):
+def divide_vars(equation: str):
     # TODO: docstrings
     [var_id_1, var_id_2] = equation.split("/")
 
-    var_1_df = get_processed_lau_data(var_id_1, country)
-    var_2_df = get_processed_lau_data(var_id_2, country)
+    var_1_df = get_processed_lau_data(var_id_1)
+    var_2_df = get_processed_lau_data(var_id_2)
 
     result = solve_dfs(var_1_df, var_2_df, "/")
 
     return result
 
 
-def multiply_vars(equation: str, country):
+def multiply_vars(equation: str):
     # TODO: docstring
     [var_id_1, var_id_2] = equation.split("*")
 
     if var_id_1.isdigit():
-        result = get_processed_lau_data(var_id_2, country)
+        result = get_processed_lau_data(var_id_2)
         result["value"] = result["value"] * float(var_id_1)
 
     else:
-        var_1_df = get_processed_lau_data(var_id_1, country)
-        var_2_df = get_processed_lau_data(var_id_2, country)
+        var_1_df = get_processed_lau_data(var_id_1)
+        var_2_df = get_processed_lau_data(var_id_2)
 
         result = solve_dfs(var_1_df, var_2_df, "*")
 
     return result
 
 
-def solve_proxy_equation(equation: str, country: Optional[str] = "all"):
+def solve_proxy_equation(equation: str):
     # TODO: doctrings
     """
     Currently covers the following cases:
@@ -126,16 +130,16 @@ def solve_proxy_equation(equation: str, country: Optional[str] = "all"):
 
     def _calculate(_eq):
         if "/" in _eq:
-            result = divide_vars(_eq, country)
+            result = divide_vars(_eq)
 
         elif "+" in _eq:
-            result = add_vars(_eq, country)
+            result = add_vars(_eq)
 
         elif "*" in _eq:
-            result = multiply_vars(_eq, country)
+            result = multiply_vars(_eq)
 
         else:
-            result = get_processed_lau_data(_eq, country)
+            result = get_processed_lau_data(_eq)
 
         return result
 
@@ -156,6 +160,7 @@ def solve_proxy_equation(equation: str, country: Optional[str] = "all"):
     result["value"] = (result["value"] - result["value"].min()) / (
         result["value"].max() - result["value"].min()
     )
+    result["value"].replace([np.inf, np.nan], 0, inplace=True)
 
     return result
 
@@ -182,9 +187,7 @@ def match_source_target_resolutions(
     return proxy_data
 
 
-def apply_binary_disaggregation_criteria(
-    proxy_data, binary_disaggregation_criteria, country: Optional[str] = "all"
-):
+def apply_binary_disaggregation_criteria(proxy_data, binary_disaggregation_criteria):
     # TODO: docstring
     """set the values in the value column of proxy_data to 0 for those region_ids where the corresponding value in the result dataframe is less than the threshold."""
     out_proxy_data = proxy_data.copy()
@@ -193,7 +196,7 @@ def apply_binary_disaggregation_criteria(
         ">="
     )  # NOTE: only greater than or equal to is implemented
 
-    result = solve_proxy_equation(equation, country)
+    result = solve_proxy_equation(equation)
     result = result[["region_id", "region_code", "value"]].copy()
 
     # Merge the dataframes on 'region_id'
@@ -291,6 +294,9 @@ def disaggregate_data(target_data, proxy_data, disaggregation_quality_rating):
 
         # add var_detail_id
         disagg_df["var_detail_id"] = row["var_detail_id"]
+
+        # add proxy_detail_id
+        disagg_df["proxy_detail_id"] = row["proxy_detail_id"]
 
         # add pathway_id
         if "pathway_id" in row.keys():
