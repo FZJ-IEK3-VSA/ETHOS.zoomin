@@ -10,7 +10,7 @@ eval "$(micromamba shell hook --shell=bash)"
 micromamba activate zoomin
 
 # List of databases
-DATABASES=("de" "es" "pl" "be" "el" "lt" "pt" "bg" "lu" "ro" "cz" "fr" "hu" "si" "dk" "hr" "mt" "sk"  "it" "nl" "fi" "ee" "cy" "at" "se" "ie" "lv")
+DATABASES=("de" "es" "pl" "be" "el" "lt" "pt" "bg" "lu" "ro" "cz" "fr" "hu" "si" "dk" "hr" "mt" "sk" "it" "nl" "fi" "ee" "cy" "at" "se" "ie" "lv")
 
 # Run snakemake for each database in parallel
 for db_name in "${DATABASES[@]}"; do 

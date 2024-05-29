@@ -56,6 +56,9 @@ eucalc_vars_for_mini_db = [
     "eucalc_ccu_capex_unmineable_coal_seams",
     "eucalc_elc_old_capacity_fossil_coal",
     "eucalc_tra_vehicle_fleet_freight_hdvm_phev_diesel_ei",
+    "eucalc_elc_opex_res_other_marine",
+    "eucalc_tra_energy_cost",
+    "eucalc_ccu_capex_saline_aquifers",
 ]
 
 
@@ -172,7 +175,7 @@ def save_predictor_df(spatial_level):
     final_df = None
     for var_name in predictor_vars:
         if "cproj_" in var_name:
-            sql_cmd = f"""SELECT v.var_name, d.value, r.region_code
+            sql_cmd = f"""SELECT d.value, r.region_code
                 FROM processed_data d
                 JOIN regions r ON d.region_id = r.id
                 JOIN var_details v ON d.var_detail_id = v.id
@@ -182,7 +185,7 @@ def save_predictor_df(spatial_level):
                 AND v.var_name = '{var_name}';"""
 
         else:
-            sql_cmd = f"""SELECT v.var_name, d.value, r.region_code
+            sql_cmd = f"""SELECT d.value, r.region_code
                 FROM processed_data d
                 JOIN regions r ON d.region_id = r.id
                 JOIN var_details v ON d.var_detail_id = v.id
@@ -191,7 +194,6 @@ def save_predictor_df(spatial_level):
 
         predictor_df = db_access.get_table(sql_cmd)
 
-        predictor_df.drop(columns=["var_name"], inplace=True)
         predictor_df.rename(columns={"value": var_name}, inplace=True)
 
         if final_df is None:
