@@ -18,7 +18,7 @@ for db_name in "${DATABASES[@]}"; do
     # populate DB  
     cd snakemake/climate_vars
     START=$(date +%s)
-    snakemake -c 10 -j 10
+    snakemake -c 5 -j 5
     END=$(date +%s)
 
     duration=$((END - START))
@@ -26,7 +26,7 @@ for db_name in "${DATABASES[@]}"; do
 
     cd ../collected_vars
     START=$(date +%s)
-    snakemake -c 10 -j 10
+    snakemake -c 5 -j 5
     END=$(date +%s)
 
     duration=$((END - START))
@@ -34,7 +34,7 @@ for db_name in "${DATABASES[@]}"; do
 
     cd ../eucalc_vars
     START=$(date +%s)
-    snakemake -c 10 -j 10
+    snakemake -c 5 -j 5
     END=$(date +%s)
 
     duration=$((END - START))
