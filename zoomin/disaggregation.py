@@ -223,17 +223,17 @@ def perform_random_forest_based_disaggregation(
             "var_details", {"var_name": predictor}
         )
 
-        if var_name.startswith("cproj_"):
+        if predictor.startswith("cproj_"):
             climate_experiment_id = get_primary_key(
                 "climate_experiments", {"climate_experiment": "RCP2.6"}
             )
-            sql_cmd = f"""r.region_code, d.quality_rating_id
+            sql_cmd = f"""SELECT r.region_code, d.quality_rating_id
                         FROM processed_data d
                         JOIN regions r ON d.region_id = r.id
                         WHERE var_detail_id = {predictor_var_detail_id}
                             AND r.id in {lau_region_ids}
-                            AND year=2020 
-                            AND climate_experiment_id={climate_experiment_id}"""
+                            AND d.year=2020 
+                            AND d.climate_experiment_id={climate_experiment_id}"""
         else:
             sql_cmd = f"""SELECT r.region_code, d.quality_rating_id
                         FROM processed_data d

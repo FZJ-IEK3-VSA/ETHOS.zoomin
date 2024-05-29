@@ -53,3 +53,7 @@ def test_save_predictor_df():
 
 def test_gross_value_added_nace_sector_b_e():
     disagg_manager.process_collected_var("gross_value_added_nace_sector_b_e")
+
+
+def test_gross_value_added_growth():
+    disagg_manager.process_collected_var("gross_value_added_growth")
