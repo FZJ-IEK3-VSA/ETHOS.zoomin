@@ -198,56 +198,6 @@ def get_processed_lau_data(cursor: Any, var_name: str) -> pd.DataFrame:
     return final_df
 
 
-@measure_memory_leak
-@with_db_connection()
-def get_data_for_calculations(
-    cursor: Any,
-    var_name: str,
-    calc_var_type: str,
-    pathway_name: Optional[int] = None,
-) -> pd.DataFrame:
-    """Return dataframe from processedd_data table."""
-
-    var_detail_id = get_primary_key("var_details", {"var_name": var_name})
-
-    if calc_var_type == "soi":
-        sql_cmd = f"SELECT region_id, pathway_id, year, value, quality_rating_id FROM processed_data \
-                WHERE var_detail_id={var_detail_id}"
-
-        data_df = get_table(sql_cmd)
-
-        if "eucalc_" not in var_name:  # -> year and pathway_id are ignored
-            data_df.drop(columns=["pathway_id", "year"], inplace=True)
-        else:
-            # for eucalc value, only the first year is considered #TODO: for eucalc value, you need any one pathway and year = 2020. For this year, the value should be the same no matter which pathway.
-            # dont drop year. Use it the same way as you do for collected_vars to assign quality rating
-            first_year = data_df["year"].values.min()
-            data_df = data_df[data_df["year"] == first_year]
-
-            data_df.drop(columns=["year"], inplace=True)
-
-    elif calc_var_type == "eucalc_var":
-        # NOTE: helps to deploy for different countries individually
-        if pathway_name is None:
-            sql_cmd = f"SELECT region_id, pathway_id, year, value, quality_rating_id FROM processed_data \
-                    WHERE var_detail_id={var_detail_id}"
-        else:
-            pathway_id = get_primary_key(
-                "pathways", {"pathway_file_name": pathway_name}
-            )
-            sql_cmd = f"SELECT region_id, pathway_id, year, value, quality_rating_id FROM processed_data \
-                    WHERE var_detail_id={var_detail_id} AND pathway_id={pathway_id}"
-
-        data_df = get_table(sql_cmd)
-
-    else:
-        sql_cmd = f"SELECT region_id, value, quality_rating_id FROM processed_data \
-                WHERE var_detail_id={var_detail_id}"
-        data_df = get_table(sql_cmd)
-
-    return data_df
-
-
 def _psql_insert_copy(table: Any, conn: Any, keys: list, data_iter: Iterable) -> None:
     """Execute SQL statement inserting data.
 

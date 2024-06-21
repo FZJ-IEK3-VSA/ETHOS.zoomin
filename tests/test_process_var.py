@@ -57,3 +57,9 @@ def test_gross_value_added_nace_sector_b_e():
 
 def test_gross_value_added_growth():
     disagg_manager.process_collected_var("gross_value_added_growth")
+
+
+def test_eucalc_ind_energy_demand_cement_gas_ff_natural_ei():
+    perform_post_disagg_calculation(
+        "eucalc_ind_energy_demand_cement_gas_ff_natural_ei", "eucalc_var"
+    )

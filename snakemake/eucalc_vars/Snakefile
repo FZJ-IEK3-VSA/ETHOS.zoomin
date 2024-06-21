@@ -82,28 +82,26 @@ rule calculate_eucalc_vars_post_disaggregation:
     input:
         f"output_logs/{db_name}/finished_disaggregation.log"
     output:
-        touch("output_logs/{wc_db_name}/{wc_eucalc_var_post_disagg_calc}_{wc_pathway_file_name}.log")
+        touch("output_logs/{wc_db_name}/{wc_eucalc_var_post_disagg_calc}.log")
     run:
         try:
-            perform_post_disagg_calculation(wildcards.wc_eucalc_var_post_disagg_calc, 
-                                            "eucalc_var", 
-                                            wildcards.wc_pathway_file_name)
+            perform_post_disagg_calculation(wildcards.wc_eucalc_var_post_disagg_calc)
 
         except Exception as e:
-            log_error(traceback.format_exc(), wildcards.wc_eucalc_var_prio_3)
+            log_error(traceback.format_exc(), wildcards.wc_eucalc_var_post_disagg_calc)
             raise e
 
 #================================================================================================
 
 rule final:
     input:
-        expand("output_logs/{db_name}/{var_name}_{pathway_file_name}.log", 
-                    db_name=db_name,
-                    var_name=eucalc_vars_post_disagg_calc,
-                    pathway_file_name=pathway_file_names)
+        expand("output_logs/{db_name}/{var_name}.log", 
+                     db_name=db_name,
+                    var_name=eucalc_vars_post_disagg_calc)
     output:
         "bad_proxy_log.json"
     run:
         # log bad proxies 
         with open("bad_proxy_log.json", 'w') as fp:
             json.dump(bad_proxy_dict, fp)
+

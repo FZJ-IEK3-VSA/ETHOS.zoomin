@@ -183,7 +183,7 @@ rule calculate_collected_vars_post_disaggregation:
         touch("output_logs/{wc_db_name}/{wc_collected_var_post_disagg_calc}.log")
     run:
         try:
-            perform_post_disagg_calculation(wildcards.wc_collected_var_post_disagg_calc, "collected_var")
+            perform_post_disagg_calculation(wildcards.wc_collected_var_post_disagg_calc)
 
         except Exception as e:
             log_error(traceback.format_exc(), wildcards.wc_collected_var_post_disagg_calc)
