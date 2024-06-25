@@ -13,52 +13,50 @@ mini_db = int(os.environ.get("MINI_DB"))
 db_name = os.environ.get("DB_NAME")
 
 collected_vars_for_mini_db = [
-    "population",
-    "employment",
-    "gross_value_added",
-    "gross_value_added_nace_sector_a",
-    "gross_domestic_product",
     "relative_gross_value_added_nace_sector_a",
+    "number_of_dairy_cows",
+    "road_transport_of_freight",
     "foreign_born_population",
-    "statistical_area",
     "heat_production_with_lignite",
     "heat_production_with_coal",
     "heat_production_with_natural_gas",
-    "number_of_dairy_cows",
-    "live_births",
     "active_citizenship",
-    "dump_sites_cover",
     "plastic_waste",
     "people_at_risk_of_poverty_or_social_exclusion",
     "income_of_households",
     "non_residential_energy_demand_space_cooling",
     "people_with_tertiary_education",
     "number_of_people_affected_by_natural_disasters",
-    "deaths",
+    "air_transport_of_freight",
+    "maritime_transport_of_freight",
 ]
 
 eucalc_vars_for_mini_db = [
-    "eucalc_ind_material_production_cement_wet_kiln",
-    "eucalc_ind_energy_demand_cement_electricity",
-    "eucalc_ind_energy_demand_cement_gas_bio",
-    "eucalc_ind_energy_demand_cement_gas_ff_natural",
-    "eucalc_ind_energy_demand_cement_hydrogen",
-    "eucalc_ind_energy_demand_cement_liquid_bio",
-    "eucalc_ind_energy_demand_cement_liquid_ff_oil",
-    "eucalc_ind_energy_demand_cement_solid_bio",
-    "eucalc_ind_energy_demand_cement_solid_ff_coal",
-    "eucalc_ind_energy_demand_cement_solid_waste",
-    "eucalc_ind_energy_demand_cement_total",
+    "eucalc_agr_energy_demand_liquid_ff_gasoline_ei",
+    "eucalc_agr_input_use_emissions_co2_fuel",
+    "eucalc_agr_energy_demand_liquid_ff_gasoline",
+    "eucalc_agr_energy_demand_gas_ff_natural",
+    "eucalc_agr_energy_demand_liquid_ff_diesel",
+    "eucalc_agr_energy_demand_liquid_ff_fuel_oil",
+    "eucalc_agr_energy_demand_liquid_ff_gasoline",
+    "eucalc_agr_energy_demand_liquid_ff_lpg",
+    "eucalc_agr_co2e_liv_applied_abp_dairy_milk_ei",
+    "eucalc_agr_emissions_co2e_liv_applied_abp_dairy_milk",
+    "eucalc_agr_domestic_production_liv_abp_dairy_milk",
+    "eucalc_tra_emissions_co2e_freight_total",
+    "eucalc_tra_emissions_co2e_freight_hdv",
+    "eucalc_tra_emissions_co2e_freight_iww",
+    "eucalc_tra_emissions_co2e_freight_aviation",
+    "eucalc_tra_emissions_co2e_freight_marine",
+    "eucalc_tra_emissions_co2e_freight_rail",
+    "eucalc_elc_energy_production_res_bio_gas_ei",
+    "eucalc_elc_emissions_co2e_res_bio",
+    "eucalc_elc_energy_production_res_bio_gas",
+    "eucalc_elc_energy_production_res_bio_mass",
     "eucalc_dhg_emissions_co2_heat_co_product_from_power",
     "eucalc_ccu_capex_depleted_oil_gas_reservoirs",
-    "eucalc_ind_energy_demand_cement_gas_ff_natural_ei",
-    "eucalc_bld_energy_demand_non_residential_appliances_electricity",
     "eucalc_ccu_capex_unmineable_coal_seams",
     "eucalc_elc_old_capacity_fossil_coal",
-    "eucalc_tra_vehicle_fleet_freight_hdvm_phev_diesel_ei",
-    "eucalc_elc_opex_res_other_marine",
-    "eucalc_tra_energy_cost",
-    "eucalc_ccu_capex_saline_aquifers",
 ]
 
 
@@ -101,7 +99,7 @@ def get_collected_vars(spatial_level):
                         var_name NOT LIKE 'cimp_%%' AND 
                         var_name NOT LIKE 'cproj_%%')
                         AND original_resolution_id={original_resolution_id}
-                        AND post_disagg_calculation_eq_for_code IS NULL;"""
+                        AND post_disagg_calculation_eq IS NULL;"""
 
     else:
         sql_cmd = f"""SELECT var_name FROM var_details 
@@ -109,7 +107,7 @@ def get_collected_vars(spatial_level):
                         (var_name NOT LIKE 'eucalc_%%' AND 
                         var_name NOT LIKE 'cimp_%%' AND 
                         var_name NOT LIKE 'cproj_%%')
-                        AND post_disagg_calculation_eq_for_code IS NOT NULL;"""
+                        AND post_disagg_calculation_eq IS NOT NULL;"""
 
     var_names = db_access.get_table(sql_cmd)
 
@@ -135,13 +133,13 @@ def get_eucalc_vars(var_type):
         sql_cmd = f"""SELECT var_name FROM var_details 
                     WHERE 
                     var_name LIKE 'eucalc_%%' 
-                    AND post_disagg_calculation_eq_for_code IS NULL;"""
+                    AND post_disagg_calculation_eq IS NULL;"""
 
     else:
         sql_cmd = f"""SELECT var_name FROM var_details 
                     WHERE 
                     var_name LIKE 'eucalc_%%' 
-                    AND post_disagg_calculation_eq_for_code IS NOT NULL;"""
+                    AND post_disagg_calculation_eq IS NOT NULL;"""
 
     var_names = db_access.get_table(sql_cmd)
 
