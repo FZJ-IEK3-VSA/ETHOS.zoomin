@@ -46,6 +46,8 @@ def aggregate_data(var_data, var_name, source_resolution, data_type):
             agg_val = data_group["value"].mean()
         elif agg_method == "max":
             agg_val = data_group["value"].max()
+        elif agg_method == "mode":
+            agg_val = data_group["value"].mode().values[0]
         else:
             raise ValueError("Unknown var aggregation method")
 
