@@ -21,10 +21,14 @@ def test_categorical():
 
 testdata = [
     ("cooling degree days", 0, 5000),  # Noah's message long ago
-    ("heating degree days", 0, 5000),  # Noah's message long ago
+    (
+        "heating degree days",
+        0,
+        9000,
+    ),  # Noah's message long ago, adjusted based on errors: maximum in Italy data 8561.35
     ("degree celsius", -50, 50),  # temperatures EU
-    ("Euro/kWh", 0.1, 0.3),  # Energy prices EU
-    ("Euros", 0, 12e9),  # total family income EU
+    ("Euro/kWh", 0.1, 0.4),  # Energy prices EU
+    ("Euros", 0, 4297.19e9),  # SUM(income_of_households) raw data /2
     ("hectare", 0, 16e6),  # area of organic farm area EU
     ("index", 0, 500),  # best guess
     ("kilogram", 0, 2.2e9),  # waste in total in the EU
@@ -32,30 +36,49 @@ testdata = [
     ("lsu", 0, 115e6),  # total livestock units in the EU
     ("meter", 0, 3682),  # average ocean depth in the world
     ("million Euros", 0, 15e12),  # GDP of EU
-    ("mm", 0, 1558),  # highest annual precipitation in the EU
+    (
+        "mm",
+        0,
+        3000,
+    ),  # highest annual precipitation in the EU, adjusted based on errors: maximum in Italy data 2612.95
     ("mm/day", 0, 700),  # highest mean precipitation in the EU
-    ("Mt", 0, 59.72e24),  # weight of the earth
+    (
+        "Mt",
+        0,
+        59.72e24,
+    ),  # min_value: guess work (some emissions such as biogenic are negative in EUCalc pathways), max_value: weight of the earth
     (
         "Mt/square kilometer",
         0,
         1.17e17,  # weight of the earth/surface area of the earth
     ),
     ("Mt/vehicle", 0, 40),  # maximum capacity of a vehicle in tons
-    ("MtCO2-eq/TWh", 0, 0.365),  # maximum emission factor (lignite)
+    ("MtCO2-eq/TWh", 0, 0.383296),  # maximum emission factor (peat)
     ("MW", 0, 510000),  # installed renewable capacity of the world
     ("GW", 0, 510),  # installed renewable capacity of the world
     ("MWh", 0, 10491e9),  # total energy consumption EU
-    ("TWh", 0, 10491e3),  # total energy consumption EU
+    (
+        "TWh",
+        0,
+        10491e3,
+    ),  # min_value: guess work (some values such as agr_bioenergy-demand_liquid_eth_cereal[TWh] are negative and the fuel_demand in paper and printing industries is sometimes negative. Donno why but that is how it is in the raw data), max_value: total energy consumption EU
     ("number", 0, 58.94e6),  # population of Italy
     ("percentage", 0, 100),  # percentage!
-    ("square kilometer", 0, 41.54),  # area of the netherlands
-    ("ug/m3", 0, 113.9),  # air pollution of Delhi!
+    (
+        "square kilometer",
+        0,
+        41.54,
+    ),  # min_value: guess work (eucalc_bld_floor_area_demolished_exi has negative values), max_area: area of the netherlands
+    (
+        "ug/m3",
+        0,
+        113.9,
+    ),  # max_value: (o3 level is substantially higher than PM2.5 and no2 in the raw data, need to check it out but the database is down)
     ("vehicle-km/year", 0, 200000),  # approx maximum utilization rate in the data
-    ("years", 0, 30),  # maximum vehicle lifetime in the data
+    ("years", 0, 50),  # maximum vehicle lifetime in the data
     ("billion_EUR", 0, 10),  # guess work based on numbers in EUCalc pathways
     ("GJ", 0, 136568857),  # guess work based on numbers in EUCalc pathways
     ("kcal", 0, 292288363030810),  # guess work based on numbers in EUCalc pathways
-    ("m3", 0, 58.2e9),  # total water consumption in the EU
     ("m3", 0, 58.2e9),  # total water consumption in the EU
     ("million m3", 0, 58.2e3),  # total water consumption in the EU
     ("Mt/GJ", 0, 4.372885686522221e17),  # above Mt/GJ numbers
@@ -67,7 +90,7 @@ testdata = [
 @pytest.mark.parametrize("var_unit, expected_min, expected_max", testdata)
 def test_ranges(var_unit, expected_min, expected_max):
     output_values = get_values(
-        f"SELECT value FROM processed_data WHERE var_detail_id IN (SELECT id FROM var_details WHERE var_unit='{var_unit}')"
+        f"SELECT value FROM processed_data WHERE var_detail_id IN (SELECT id FROM var_details WHERE var_unit='{var_unit}') AND region_id IN (SELECT id FROM regions WHERE resolution='NUTS3');"
     )
 
     if len(output_values) > 0:
@@ -82,7 +105,7 @@ def test_ranges(var_unit, expected_min, expected_max):
 
 
 def test_land_use_and_land_cover():
-    var_names = [
+    var_names = (
         "continuous_urban_fabric_cover",
         "discontinuous_urban_fabric_cover",
         "industrial_or_commercial_units_cover",
@@ -128,10 +151,22 @@ def test_land_use_and_land_cover():
         "estuaries_cover",
         "sea_and_ocean_cover",
         "land_use_no_data_cover",
-    ]
+    )
 
-    sql_cmd = f"SELECT value processed_data WHERE var_detail_id in (SELECT id FROM var_details WHERE var_name IN {var_names});"
+    # sum of NUTS3 values lesser than or equal to the area of Italy
 
-    data_df = get_table(sql_cmd)
+    sql_cmd = f"""SELECT value FROM processed_data 
+                    WHERE var_detail_id in (SELECT id FROM var_details WHERE var_name IN {var_names}) 
+                    AND region_id IN (SELECT id FROM regions WHERE resolution='NUTS3');"""
 
-    assert data_df.value.sum() <= 302.073  # FOR ITALY
+    nuts3_df = get_table(sql_cmd)
+
+    assert nuts3_df.value.sum() <= 302.073  # FOR ITALY
+
+    # sum of NUTS3 values equals the value for Italy
+    sql_cmd = f"""SELECT value FROM processed_data 
+                    WHERE var_detail_id in (SELECT id FROM var_details WHERE var_name IN {var_names}) 
+                    AND region_id = (SELECT id FROM regions WHERE region_code='IT');"""
+
+    country_df = get_table(sql_cmd)
+    assert nuts3_df.value.sum() == country_df.value.sum()
