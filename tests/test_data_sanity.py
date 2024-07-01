@@ -28,14 +28,22 @@ testdata = [
     ),  # Noah's message long ago, adjusted based on errors: maximum in Italy data 8561.35
     ("degree celsius", -50, 50),  # temperatures EU
     ("Euro/kWh", 0.1, 0.4),  # Energy prices EU
-    ("Euros", 0, 4297.19e9),  # SUM(income_of_households) raw data /2
-    ("hectare", 0, 16e6),  # area of organic farm area EU
-    ("index", 0, 500),  # best guess
-    ("kilogram", 0, 2.2e9),  # waste in total in the EU
-    ("kilometer", 0, 64285009),  # length of all the roads in the world
-    ("lsu", 0, 115e6),  # total livestock units in the EU
+    (
+        "Euros",
+        0,
+        4297.19e3,
+    ),  # SUM(income_of_households) raw data - reduced by a factor of 6
+    ("hectare", 0, 160),  # area of organic farm area EU - reduced by a factor of 5
+    ("index", 0, 100),  # best guess
+    ("kilogram", 0, 2.2e3),  # waste in total in the EU - reduced by a factor of 6
+    (
+        "kilometer",
+        0,
+        642.85009,
+    ),  # length of all the roads in the world - reduced by a factor of 5
+    ("lsu", 0, 115e2),  # total livestock units in the EU - reduced by a factor of 4
     ("meter", 0, 3682),  # average ocean depth in the world
-    ("million Euros", 0, 15e12),  # GDP of EU
+    ("million Euros", 0, 15e3),  # GDP of EU - reduced by a factor of 9
     (
         "mm",
         0,
@@ -45,24 +53,33 @@ testdata = [
     (
         "Mt",
         0,
-        59.72e24,
-    ),  # min_value: guess work (some emissions such as biogenic are negative in EUCalc pathways), max_value: weight of the earth
+        59.72e2,
+    ),  # min_value: guess work (some emissions such as biogenic are negative in EUCalc pathways), max_value: weight of the earth - reduced by a factor of 22
     (
         "Mt/square kilometer",
         0,
-        1.17e17,  # weight of the earth/surface area of the earth
+        143.76,  # division of units
     ),
     ("Mt/vehicle", 0, 40),  # maximum capacity of a vehicle in tons
     ("MtCO2-eq/TWh", 0, 0.383296),  # maximum emission factor (peat)
-    ("MW", 0, 510000),  # installed renewable capacity of the world
-    ("GW", 0, 510),  # installed renewable capacity of the world
-    ("MWh", 0, 10491e9),  # total energy consumption EU
+    (
+        "MW",
+        0,
+        510,
+    ),  # installed renewable capacity of the world - reduced by a factor of 3
+    (
+        "GW",
+        0,
+        5.10,
+    ),  # installed renewable capacity of the world - reduced by a factor of 2
+    ("MWh", 0, 10491),  # total energy consumption EU - reduced by a factor of 9
     (
         "TWh",
         0,
-        10491e3,
-    ),  # min_value: guess work (some values such as agr_bioenergy-demand_liquid_eth_cereal[TWh] are negative and the fuel_demand in paper and printing industries is sometimes negative. Donno why but that is how it is in the raw data), max_value: total energy consumption EU
-    ("number", 0, 58.94e6),  # population of Italy
+        10491,
+    ),  # min_value: guess work (some values such as agr_bioenergy-demand_liquid_eth_cereal[TWh] are negative and the fuel_demand in paper and printing industries is sometimes negative. Donno why but that is how it is in the raw data),
+    # max_value: total energy consumption EU - reduced by a factor of 3
+    ("number", 0, 5e6),  # best guess for population of a NUTS3 region
     ("percentage", 0, 100),  # percentage!
     (
         "square kilometer",
@@ -79,11 +96,15 @@ testdata = [
     ("billion_EUR", 0, 10),  # guess work based on numbers in EUCalc pathways
     ("GJ", 0, 136568857),  # guess work based on numbers in EUCalc pathways
     ("kcal", 0, 292288363030810),  # guess work based on numbers in EUCalc pathways
-    ("m3", 0, 58.2e9),  # total water consumption in the EU
-    ("million m3", 0, 58.2e3),  # total water consumption in the EU
+    ("m3", 0, 58.2e3),  # total water consumption in the EU - reduced by a factor of 6
+    (
+        "million m3",
+        0,
+        58.2,
+    ),  # total water consumption in the EU - reduced by a factor of 3
     ("Mt/GJ", 0, 4.372885686522221e17),  # above Mt/GJ numbers
     ("Mt/TWh", 0, 5.692498331903536e18),  # above Mt/TWh numbers
-    ("pkm", 0, 87e9),  # total pkm in the EU (metro)
+    ("pkm", 0, 87e3),  # total pkm in the EU (metro) - reduced by a factor of 6
 ]
 
 
