@@ -7,8 +7,7 @@ from zoomin.db_access import with_db_connection, get_table
 def get_values(cursor, sql_cmd):
     cursor.execute(sql_cmd)
     result = cursor.fetchall()
-    result_list = [res[0] for res in result]
-    return result_list
+    return result[0][0]
 
 
 def test_categorical():
@@ -31,19 +30,19 @@ testdata = [
     (
         "Euros",
         0,
-        4297.19e3,
-    ),  # SUM(income_of_households) raw data - reduced by a factor of 6
-    ("hectare", 0, 160),  # area of organic farm area EU - reduced by a factor of 5
+        4297.19e9,
+    ),  # SUM(income_of_households) raw data
+    ("hectare", 0, 160e5),  # area of organic farm area EU
     ("index", 0, 100),  # best guess
-    ("kilogram", 0, 2.2e3),  # waste in total in the EU - reduced by a factor of 6
+    ("kilogram", 0, 2.2e9),  # waste in total in the EU
     (
         "kilometer",
         0,
-        642.85009,
-    ),  # length of all the roads in the world - reduced by a factor of 5
-    ("lsu", 0, 115e2),  # total livestock units in the EU - reduced by a factor of 4
+        75000,
+    ),  # total length of motorway in the EU
+    ("lsu", 0, 113e6),  # total livestock units in the EU
     ("meter", 0, 3682),  # average ocean depth in the world
-    ("million Euros", 0, 15e3),  # GDP of EU - reduced by a factor of 9
+    ("million Euros", 0, 15e12),  # GDP of EU
     (
         "mm",
         0,
@@ -53,8 +52,8 @@ testdata = [
     (
         "Mt",
         0,
-        59.72e2,
-    ),  # min_value: guess work (some emissions such as biogenic are negative in EUCalc pathways), max_value: weight of the earth - reduced by a factor of 22
+        635e6,
+    ),  # min_value: guess work (some emissions such as biogenic are negative in EUCalc pathways), max_value: Emissions of Germany
     (
         "Mt/square kilometer",
         0,
@@ -65,27 +64,27 @@ testdata = [
     (
         "MW",
         0,
-        510,
-    ),  # installed renewable capacity of the world - reduced by a factor of 3
+        7e5,
+    ),  # installed renewable capacity of EU
     (
         "GW",
         0,
-        5.10,
-    ),  # installed renewable capacity of the world - reduced by a factor of 2
-    ("MWh", 0, 10491),  # total energy consumption EU - reduced by a factor of 9
+        700,
+    ),  # # installed renewable capacity of EU
+    ("MWh", 0, 3e9),  # total energy consumption Germany
     (
         "TWh",
         0,
-        10491,
+        500000000,
     ),  # min_value: guess work (some values such as agr_bioenergy-demand_liquid_eth_cereal[TWh] are negative and the fuel_demand in paper and printing industries is sometimes negative. Donno why but that is how it is in the raw data),
-    # max_value: total energy consumption EU - reduced by a factor of 3
-    ("number", 0, 5e6),  # best guess for population of a NUTS3 region
+    # max_value: total energy consumption of Germany
+    ("number", 0, 85e6),  # Germany population
     ("percentage", 0, 100),  # percentage!
     (
         "square kilometer",
         0,
-        41.54,
-    ),  # min_value: guess work (eucalc_bld_floor_area_demolished_exi has negative values), max_area: area of the netherlands
+        543941,
+    ),  # min_value: guess work (eucalc_bld_floor_area_demolished_exi has negative values), max_area: area of France
     (
         "ug/m3",
         0,
@@ -96,33 +95,35 @@ testdata = [
     ("billion_EUR", 0, 10),  # guess work based on numbers in EUCalc pathways
     ("GJ", 0, 136568857),  # guess work based on numbers in EUCalc pathways
     ("kcal", 0, 292288363030810),  # guess work based on numbers in EUCalc pathways
-    ("m3", 0, 58.2e3),  # total water consumption in the EU - reduced by a factor of 6
+    (
+        "m3",
+        0,
+        88695,
+    ),  # Annual water comsumption Italy (most water consumption happens here in the EU)
     (
         "million m3",
         0,
-        58.2,
-    ),  # total water consumption in the EU - reduced by a factor of 3
-    ("Mt/GJ", 0, 4.372885686522221e17),  # above Mt/GJ numbers
-    ("Mt/TWh", 0, 5.692498331903536e18),  # above Mt/TWh numbers
+        0.8,
+    ),  # conversion of above
+    ("Mt/GJ", 0, 5),  # above Mt/GJ numbers
+    ("Mt/TWh", 0, 2),  # above Mt/TWh numbers
     ("pkm", 0, 87e3),  # total pkm in the EU (metro) - reduced by a factor of 6
 ]
 
 
 @pytest.mark.parametrize("var_unit, expected_min, expected_max", testdata)
 def test_ranges(var_unit, expected_min, expected_max):
-    output_values = get_values(
-        f"SELECT value FROM processed_data WHERE var_detail_id IN (SELECT id FROM var_details WHERE var_unit='{var_unit}') AND region_id IN (SELECT id FROM regions WHERE resolution='NUTS3');"
+    output_max = get_values(
+        f"SELECT MAX(value) FROM processed_data WHERE var_detail_id IN (SELECT id FROM var_details WHERE var_unit='{var_unit}')"
     )
 
-    if len(output_values) > 0:
-        output_min = np.min(output_values)
-        output_max = np.max(output_values)
+    output_min = get_values(
+        f"SELECT MIN(value) FROM processed_data WHERE var_detail_id IN (SELECT id FROM var_details WHERE var_unit='{var_unit}')"
+    )
 
+    if output_max != None and output_min != None:
         assert output_min >= expected_min
         assert output_max <= expected_max
-
-    else:
-        print(f"nothing to check no values for unit {var_unit}")
 
 
 def test_land_use_and_land_cover():
