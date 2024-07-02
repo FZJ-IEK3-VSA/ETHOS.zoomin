@@ -169,6 +169,7 @@ def process_collected_var(var_name) -> None:
                     [
                         "region_code",
                         "var_detail_id",
+                        "value",
                         "quality_rating_id",
                         "year",
                         "proxy_detail_id",

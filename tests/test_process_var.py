@@ -63,3 +63,9 @@ def test_eucalc_ind_energy_demand_cement_gas_ff_natural_ei():
     perform_post_disagg_calculation(
         "eucalc_ind_energy_demand_cement_gas_ff_natural_ei", "eucalc_var"
     )
+
+
+def test_cimp_change_in_frequency_of_heavy_precipitation_mean():
+    disagg_manager.process_climate_var(
+        "cimp_change_in_frequency_of_heavy_precipitation_mean"
+    )

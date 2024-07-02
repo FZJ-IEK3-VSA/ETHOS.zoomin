@@ -29,6 +29,7 @@ collected_vars_for_mini_db = [
     "number_of_people_affected_by_natural_disasters",
     "air_transport_of_freight",
     "maritime_transport_of_freight",
+    "electricity_prices_for_household_consumers",
 ]
 
 eucalc_vars_for_mini_db = [

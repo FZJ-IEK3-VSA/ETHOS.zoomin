@@ -46,6 +46,8 @@ def aggregate_data(var_data, var_name, source_resolution, data_type):
             agg_val = data_group["value"].mean()
         elif agg_method == "max":
             agg_val = data_group["value"].max()
+        elif agg_method == "mode":
+            agg_val = data_group["value"].mode().values[0]
         else:
             raise ValueError("Unknown var aggregation method")
 
@@ -209,8 +211,29 @@ def perform_random_forest_based_disaggregation(
     predictor_df.drop(columns="region_code", inplace=True)
 
     y_pred = rf_model.predict(predictor_df)
+    y_pred = y_pred.round(2)
 
-    disagg_df = pd.DataFrame({"region_code": region_code, "value": y_pred})
+    disagg_share_df = pd.DataFrame({"region_code": region_code, "pred_value": y_pred})
+
+    disagg_df_list = []
+    # distribute values - use predicted values are meerly weights for distribution
+    for idx, row in data_to_disagg.iterrows():
+        target_value = row["value"]
+        parent_region = row["region_code"]
+
+        sub_disagg_share_df = disagg_share_df[
+            disagg_share_df["region_code"].str.startswith(parent_region)
+        ].copy()
+
+        # disaggregate
+        total = sub_disagg_share_df["pred_value"].values.sum()
+        sub_disagg_share_df["share"] = sub_disagg_share_df["pred_value"] / total
+        sub_disagg_share_df["value"] = sub_disagg_share_df["share"] * target_value
+
+        disagg_df_list.append(sub_disagg_share_df)
+
+    disagg_df = pd.concat(disagg_df_list)
+    disagg_df.drop(columns=["pred_value", "share"], inplace=True)
 
     # assess quality rating of predictor data (based on top 3 predictors)
     lau_df = get_regions("LAU")
@@ -267,6 +290,7 @@ def perform_random_forest_based_disaggregation(
     data_to_disagg.rename(columns={"region_code": "match_region_code"}, inplace=True)
 
     # prepare final df with final quality rating
+    data_to_disagg.drop(columns="value", inplace=True)
     final_df = pd.merge(data_to_disagg, disagg_df, on="match_region_code", how="left")
 
     ## quality rating - minimum of source and target data
