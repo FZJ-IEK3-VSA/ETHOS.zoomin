@@ -1,16 +1,8 @@
 #!/bin/bash
 set -e # exits upon first error in any of the commands
 
-# update the system
-sudo apt-get update && sudo apt-get upgrade --yes
-sudo apt clean
-sudo apt autoremove
-
-eval "$(micromamba shell hook --shell=bash)"
-micromamba activate zoomin
-
 # List of databases
-DATABASES=("de" "es" "pl" "be" "el" "lt" "pt" "bg" "lu" "ro" "cz" "fr" "hu" "si" "dk" "hr" "mt" "sk" "it" "nl" "fi" "ee" "cy" "at" "se" "ie" "lv")
+DATABASES=("it")
 
 # Run snakemake for each database in parallel
 for db_name in "${DATABASES[@]}"; do 
@@ -39,9 +31,4 @@ for db_name in "${DATABASES[@]}"; do
 
     duration=$((END - START))
     echo "Time taken: $duration seconds ===================================="
-
-    cd ../..
-    sudo systemctl restart nginx
-    sudo systemctl restart gunicorn
-
 done

@@ -2,7 +2,7 @@
 set -e # exits upon first error in any of the commands
 
 # List of databases
-DATABASES=("mt")
+DATABASES=("pt")
 
 # Run snakemake for each database in parallel
 for db_name in "${DATABASES[@]}"; do 
