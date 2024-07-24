@@ -224,11 +224,13 @@ def process_collected_var(var_name) -> None:
 ############## EUCalc data ##################
 
 
-def process_eucalc_var(var_name, pathway_name, year) -> None:
+def process_eucalc_var(var_name, pathway_description, year) -> None:
     """Take processed and saved data, disaggregate to LAU regions and add to the database."""  # TODO: docstring
 
     var_detail_id = get_primary_key("var_details", {"var_name": var_name})
-    pathway_id = get_primary_key("pathways", {"pathway_file_name": pathway_name})
+    pathway_id = get_primary_key(
+        "pathways", {"pathway_description": pathway_description}
+    )
 
     sql_cmd = f"""SELECT region_id, var_detail_id, pathway_id, value, quality_rating_id, year, proxy_detail_id
                     FROM staged_eucalc_data 

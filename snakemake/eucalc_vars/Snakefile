@@ -28,14 +28,14 @@ rule all:
     input:
         "bad_proxy_log.json"
 
-pathway_file_names = sm_utls.get_eucalc_pathways()
+pathways = sm_utls.get_eucalc_pathways()
 eucalc_vars_to_disagg = sm_utls.get_eucalc_vars("disagg")
 eucalc_vars_post_disagg_calc = sm_utls.get_eucalc_vars("post_disagg_calc")
 
 # Define a wildcard for each parameter
 wildcard_constraints:
     # eucalc vars 
-    wc_pathway_file_name = "|".join(pathway_file_names),
+    wc_pathway = "|".join(pathways),
 
     wc_eucalc_var_to_disagg = "|".join(eucalc_vars_to_disagg),
     wc_eucalc_var_post_disagg_calc = "|".join(eucalc_vars_post_disagg_calc), 
@@ -51,27 +51,27 @@ wildcard_constraints:
 # DISAGGREGATION
 rule disaggregate_eucalc_vars:
     output:
-        touch("output_logs/{wc_db_name}/{wc_eucalc_var_to_disagg}_{wc_eucalc_year}_{wc_pathway_file_name}.log")
+        touch("output_logs/{wc_db_name}/{wc_eucalc_var_to_disagg}_{wc_eucalc_year}_{wc_pathway}.log")
     run:
         try:
             bad_proxy = disagg_manager.process_eucalc_var(wildcards.wc_eucalc_var_to_disagg, 
-                                                wildcards.wc_pathway_file_name,
+                                                wildcards.wc_pathway,
                                                 wildcards.wc_eucalc_year)
 
             if bad_proxy is not None:
-                bad_proxy_dict.update({f"{wildcards.wc_eucalc_var_to_disagg}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway_file_name}": bad_proxy})
+                bad_proxy_dict.update({f"{wildcards.wc_eucalc_var_to_disagg}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway}": bad_proxy})
 
         except Exception as e:
-            log_error(traceback.format_exc(), f"{wildcards.wc_eucalc_var_to_disagg}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway_file_name}")
+            log_error(traceback.format_exc(), f"{wildcards.wc_eucalc_var_to_disagg}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway}")
             raise e
             
 rule end_of_disaggregation:
     input:
-        expand("output_logs/{db_name}/{var_name}_{year}_{pathway_file_name}.log", 
+        expand("output_logs/{db_name}/{var_name}_{year}_{pathway}.log", 
                 db_name=db_name,
                 var_name=eucalc_vars_to_disagg,
                 year=eucalc_years,
-                pathway_file_name=pathway_file_names)
+                pathway=pathways)
     output:
         touch("output_logs/{wc_db_name}/finished_disaggregation.log")
 
