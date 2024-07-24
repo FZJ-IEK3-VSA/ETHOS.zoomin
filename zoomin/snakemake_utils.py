@@ -125,7 +125,7 @@ def get_collected_vars(spatial_level):
 
 
 def get_eucalc_pathways():
-    pathways = list(db_access.get_col_values("pathways", "pathway_file_name"))
+    pathways = list(db_access.get_col_values("pathways", "pathway_description"))
     return pathways
 
 
