@@ -17,15 +17,6 @@ def solve_dfs(df_1, df_2, operator):
         how="inner",
     )
 
-    # normalise value_x and value_y columns before performing arithmetic operations on them
-    result["value_x"] = (result["value_x"] - result["value_x"].min()) / (
-        result["value_x"].max() - result["value_x"].min()
-    )
-
-    result["value_y"] = (result["value_y"] - result["value_y"].min()) / (
-        result["value_y"].max() - result["value_y"].min()
-    )
-
     result["value_x"].replace([np.inf, np.nan], 0, inplace=True)
     result["value_y"].replace([np.inf, np.nan], 0, inplace=True)
 
@@ -69,54 +60,6 @@ def solve_dfs(df_1, df_2, operator):
     return result
 
 
-def add_vars(equation: str):
-    """#TODO: doctrings
-    The equation allows for construction of complex proxies.
-     * Ex.: "population/statistical area" #TODO: more examples with |s
-    """
-    proxy_vars_ids = equation.split("+")
-
-    for i, var_id in enumerate(proxy_vars_ids):
-        var_data = get_processed_lau_data(var_id)
-
-        if i == 0:
-            result = var_data
-
-        else:
-            result = solve_dfs(result, var_data, "+")
-
-    return result
-
-
-def divide_vars(equation: str):
-    # TODO: docstrings
-    [var_id_1, var_id_2] = equation.split("/")
-
-    var_1_df = get_processed_lau_data(var_id_1)
-    var_2_df = get_processed_lau_data(var_id_2)
-
-    result = solve_dfs(var_1_df, var_2_df, "/")
-
-    return result
-
-
-def multiply_vars(equation: str):
-    # TODO: docstring
-    [var_id_1, var_id_2] = equation.split("*")
-
-    if var_id_1.isdigit():
-        result = get_processed_lau_data(var_id_2)
-        result["value"] = result["value"] * float(var_id_1)
-
-    else:
-        var_1_df = get_processed_lau_data(var_id_1)
-        var_2_df = get_processed_lau_data(var_id_2)
-
-        result = solve_dfs(var_1_df, var_2_df, "*")
-
-    return result
-
-
 def solve_proxy_equation(equation: str):
     # TODO: doctrings
     """
@@ -126,20 +69,77 @@ def solve_proxy_equation(equation: str):
     3. 1 proxy divided by the other: var_1/var_2
     4. several proxies added with weighting: 2*var_1 |+ 3*var_2 | .....
     5. sum of proxies (or divide or multiply two proxies), divided by a proxy: var_1 + var_2 ... |/ var_n
+    6. multiply two proxies: var_1 * var_2
     """
+    eq_parts = equation.split("|")
+
+    # read in all the proxy data and normalise value column before performing arithmetic operations
+    var_list = []
+    for eq_part in eq_parts:
+        if "/" in eq_part:
+            sub_var_list = eq_part.split("/")
+            var_list.extend(sub_var_list)
+
+        elif "+" in eq_part:
+            sub_var_list = eq_part.split("+")
+            var_list.extend(sub_var_list)
+
+        elif "*" in eq_part:
+            sub_var_list = eq_part.split("*")
+            if sub_var_list[0].isdigit():
+                var_list.append(sub_var_list[1])
+            else:
+                var_list.extend(sub_var_list)
+
+        else:
+            var_list.append(eq_part)
+
+    proxy_data_dict_normalized = {}
+    for var_name in var_list:
+        proxy_data = get_processed_lau_data(var_name)
+
+        proxy_data["value"] = (proxy_data["value"] - proxy_data["value"].min()) / (
+            proxy_data["value"].max() - proxy_data["value"].min()
+        )
+
+        proxy_data_dict_normalized[var_name] = proxy_data
 
     def _calculate(_eq):
         if "/" in _eq:
-            result = divide_vars(_eq)
+            [var_1, var_2] = _eq.split("/")
+
+            var_1_df = proxy_data_dict_normalized[var_1]
+            var_2_df = proxy_data_dict_normalized[var_2]
+
+            result = solve_dfs(var_1_df, var_2_df, "/")
 
         elif "+" in _eq:
-            result = add_vars(_eq)
+            proxy_vars = _eq.split("+")
+
+            for i, var_name in enumerate(proxy_vars):
+                var_data = proxy_data_dict_normalized[var_name]
+
+                if i == 0:
+                    result = var_data
+
+                else:
+                    result = solve_dfs(result, var_data, "+")
 
         elif "*" in _eq:
-            result = multiply_vars(_eq)
+            [var_1, var_2] = _eq.split("*")
+
+            if var_1.isdigit():
+                result = proxy_data_dict_normalized[var_2]
+                result["value"] = result["value"] * float(var_1)
+
+            else:
+                var_1_df = proxy_data_dict_normalized[var_1]
+                var_2_df = proxy_data_dict_normalized[var_2]
+
+                result = solve_dfs(var_1_df, var_2_df, "*")
 
         else:
-            result = get_processed_lau_data(_eq)
+            result = proxy_data_dict_normalized[_eq]
 
         return result
 
@@ -148,6 +148,7 @@ def solve_proxy_equation(equation: str):
     for i, eq_part in enumerate(eq_parts):
         if i == 0:
             result = _calculate(eq_part)
+
         else:
             operator = eq_part[0]
             _eq_part = eq_part[1:]
@@ -156,11 +157,7 @@ def solve_proxy_equation(equation: str):
 
             result = solve_dfs(result, _result, operator)
 
-    # normalize value column
-    result["value"] = (result["value"] - result["value"].min()) / (
-        result["value"].max() - result["value"].min()
-    )
-    result["value"].replace([np.inf, np.nan], 0, inplace=True)
+    result["value"] = result["value"].round(2)
 
     return result
 
