@@ -69,3 +69,7 @@ def test_cimp_change_in_frequency_of_heavy_precipitation_mean():
     disagg_manager.process_climate_var(
         "cimp_change_in_frequency_of_heavy_precipitation_mean"
     )
+
+
+def test_heat_production_with_peat():
+    disagg_manager.process_collected_var("heat_production_with_peat")

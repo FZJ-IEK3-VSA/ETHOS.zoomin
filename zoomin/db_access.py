@@ -9,7 +9,6 @@ import pandas as pd
 import dask.dataframe as dd
 from sqlalchemy import create_engine
 from dotenv import load_dotenv, find_dotenv
-from zoomin.general_utils import measure_memory_leak
 
 # find .env automagically by walking up directories until it's found
 dotenv_path = find_dotenv()
@@ -131,7 +130,6 @@ def get_primary_key(table: str, cols_criteria: dict) -> Any:
     return col_vals
 
 
-@measure_memory_leak
 @with_db_connection()
 def get_table(cursor: Any, sql_cmd: str) -> pd.DataFrame:
     """Return a table as dataframe based on the sql_cmd."""
@@ -150,7 +148,6 @@ def get_table(cursor: Any, sql_cmd: str) -> pd.DataFrame:
     return table_df
 
 
-@measure_memory_leak
 @with_db_connection()
 def get_regions(cursor: Any, resolution: str) -> pd.DataFrame:
     """Return dataframe of region codes and their primary keys corresponding to the specified resolution from the DB."""
@@ -163,7 +160,6 @@ def get_regions(cursor: Any, resolution: str) -> pd.DataFrame:
     return regions_df
 
 
-@measure_memory_leak
 @with_db_connection()
 def get_processed_lau_data(cursor: Any, var_name: str) -> pd.DataFrame:
     """Return dataframe from processed_data table at LAU level."""  # TODO: update docstring
@@ -231,7 +227,6 @@ def _psql_insert_copy(table: Any, conn: Any, keys: list, data_iter: Iterable) ->
         cur.copy_expert(sql=sql, file=s_buf)
 
 
-@measure_memory_leak
 def add_to_processed_data(db_ready_df: pd.DataFrame) -> None:
     """Add the data to processed_data table."""
     if len(db_ready_df) > 10000:

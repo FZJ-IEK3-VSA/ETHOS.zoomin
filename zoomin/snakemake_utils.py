@@ -20,6 +20,7 @@ collected_vars_for_mini_db = [
     "heat_production_with_lignite",
     "heat_production_with_coal",
     "heat_production_with_natural_gas",
+    "heat_production_with_peat",
     "active_citizenship",
     "plastic_waste",
     "people_at_risk_of_poverty_or_social_exclusion",
