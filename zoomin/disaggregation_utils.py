@@ -1,4 +1,5 @@
 from typing import Optional
+import re
 import warnings
 import numpy as np
 import pandas as pd
@@ -33,7 +34,7 @@ def solve_dfs(df_1, df_2, operator):
             result["value"].replace([np.inf, np.nan], 0, inplace=True)
 
     elif operator == "*":
-        result["value"] = result[["value_x", "value_y"]].multiply(axis=1)
+        result["value"] = result["value_x"].mul(result["value_y"])
 
     else:
         raise ValueError("Unknown operation")
@@ -71,28 +72,14 @@ def solve_proxy_equation(equation: str):
     5. sum of proxies (or divide or multiply two proxies), divided by a proxy: var_1 + var_2 ... |/ var_n
     6. multiply two proxies: var_1 * var_2
     """
-    eq_parts = equation.split("|")
-
     # read in all the proxy data and normalise value column before performing arithmetic operations
-    var_list = []
-    for eq_part in eq_parts:
-        if "/" in eq_part:
-            sub_var_list = eq_part.split("/")
-            var_list.extend(sub_var_list)
+    pattern = r"[\+\*\|\-\/]"
 
-        elif "+" in eq_part:
-            sub_var_list = eq_part.split("+")
-            var_list.extend(sub_var_list)
+    # Splitting the string using the defined pattern
+    split_result = re.split(pattern, equation)
 
-        elif "*" in eq_part:
-            sub_var_list = eq_part.split("*")
-            if sub_var_list[0].isdigit():
-                var_list.append(sub_var_list[1])
-            else:
-                var_list.extend(sub_var_list)
-
-        else:
-            var_list.append(eq_part)
+    # Filtering out empty strings and digits
+    var_list = [item for item in split_result if item and not item.isdigit()]
 
     proxy_data_dict_normalized = {}
     for var_name in var_list:
