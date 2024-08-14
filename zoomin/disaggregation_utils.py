@@ -33,7 +33,7 @@ def solve_dfs(df_1, df_2, operator):
             result["value"].replace([np.inf, np.nan], 0, inplace=True)
 
     elif operator == "*":
-        result["value"] = result[["value_x", "value_y"]].multiply(axis=1)
+        result["value"] = result["value_x"].mul(result["value_y"])
 
     else:
         raise ValueError("Unknown operation")
