@@ -228,6 +228,12 @@ def disaggregate_value(
         disagg_data["value"] = target_value / len(proxy_data)
         is_bad_proxy = True
 
+    elif target_value == 0:
+        disagg_data = disagg_data.drop(["value"], axis=1)
+        disagg_data["value"] = 0
+
+        is_bad_proxy = False
+
     else:
         # disaggregte
         disagg_data["share"] = disagg_data["value"] / total
