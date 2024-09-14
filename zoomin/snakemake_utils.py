@@ -168,39 +168,59 @@ def save_predictor_df(spatial_level):
     ) as f:
         predictor_vars = tuple(json.load(f))
 
-    climate_experiment_id = db_access.get_primary_key(
-        "climate_experiments", {"climate_experiment": "RCP4.5"}
-    )
-
     final_df = None
-    for var_name in predictor_vars:
-        if "cproj_" in var_name:
-            sql_cmd = f"""SELECT d.value, r.region_code
-                FROM processed_data d
-                JOIN regions r ON d.region_id = r.id
-                JOIN var_details v ON d.var_detail_id = v.id
-                WHERE region_id IN {lau_region_ids}
-                AND d.year=2020
-                AND d.climate_experiment_id={climate_experiment_id}
-                AND v.var_name = '{var_name}';"""
+    # climate projections
+    cproj_vars = tuple([var for var in predictor_vars if var.startswith("cproj_")])
 
-        else:
-            sql_cmd = f"""SELECT d.value, r.region_code
-                FROM processed_data d
-                JOIN regions r ON d.region_id = r.id
-                JOIN var_details v ON d.var_detail_id = v.id
-                WHERE region_id IN {lau_region_ids}
-                AND v.var_name = '{var_name}';"""
+    if len(cproj_vars) > 0:
+        climate_experiment_id = db_access.get_primary_key(
+            "climate_experiments", {"climate_experiment": "RCP4.5"}
+        )
+
+        sql_cmd = f"""SELECT d.value, r.region_code, v.var_name
+                    FROM processed_data d
+                    JOIN regions r ON d.region_id = r.id
+                    JOIN var_details v ON d.var_detail_id = v.id
+                    WHERE region_id IN {lau_region_ids}
+                    AND d.year=2020
+                    AND d.climate_experiment_id={climate_experiment_id}
+                    AND v.var_name IN {cproj_vars};"""
 
         predictor_df = db_access.get_table(sql_cmd)
 
-        predictor_df.rename(columns={"value": var_name}, inplace=True)
+        for var_name, sub_df in predictor_df.groupby("var_name"):
+            sub_df.rename(columns={"value": var_name}, inplace=True)
+            sub_df.drop(columns="var_name", inplace=True)
+
+            if final_df is None:
+                final_df = sub_df
+            else:
+                final_df = pd.merge(final_df, sub_df, on="region_code", how="inner")
+
+    # collected data
+    non_cproj_vars = tuple([var for var in predictor_vars if var not in cproj_vars])
+
+    sql_cmd = f"""SELECT d.value, r.region_code, v.var_name
+                    FROM processed_data d
+                    JOIN regions r ON d.region_id = r.id
+                    JOIN var_details v ON d.var_detail_id = v.id
+                    WHERE region_id IN {lau_region_ids}
+                    AND v.var_name IN {non_cproj_vars};"""
+
+    predictor_df = db_access.get_table(sql_cmd)
+
+    for var_name, sub_df in predictor_df.groupby("var_name"):
+        sub_df.rename(columns={"value": var_name}, inplace=True)
+        sub_df.drop(columns="var_name", inplace=True)
 
         if final_df is None:
-            final_df = predictor_df
+            final_df = sub_df
         else:
-            final_df = pd.merge(final_df, predictor_df, on="region_code", how="inner")
+            final_df = pd.merge(final_df, sub_df, on="region_code", how="inner")
 
+    final_df = final_df.reindex(sorted(final_df.columns), axis=1)
+
+    # save data
     final_df.to_csv(
         os.path.join(
             os.path.dirname(__file__),

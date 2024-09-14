@@ -133,7 +133,7 @@ rule disaggregate_collected_vars_nuts2:
             bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_nuts2)
 
             if bad_proxy is not None:
-                bad_proxy_dict.update({wildcards.wc_collected_var_nuts2})
+                bad_proxy_dict.update({wildcards.wc_collected_var_nuts2: bad_proxy})
 
         except Exception as e:
             log_error(traceback.format_exc(), wildcards.wc_collected_var_nuts2)

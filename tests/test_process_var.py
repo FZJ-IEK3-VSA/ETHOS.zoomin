@@ -72,6 +72,10 @@ def test_cimp_change_in_frequency_of_heavy_precipitation_mean():
 
 
 def test_dummy():
-    disagg_manager.process_collected_var(
-        "final_energy_consumption_in_non_ferrous_metals_industry"
+    disagg_manager.process_eucalc_var(
+        "eucalc_dhg_emissions_co2e_heat_geothermal", "national", 2040
     )
+
+
+def test_tra_vehicle_lifetime_new_passenger_ldv_bev():
+    disagg_manager.process_collected_var("tra_vehicle_lifetime_new_passenger_ldv_bev")
