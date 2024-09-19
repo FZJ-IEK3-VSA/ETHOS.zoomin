@@ -3,6 +3,7 @@ import json
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from zoomin import db_access
+from zoomin.db_access import with_db_connection
 
 # find .env automagically by walking up directories until it's found
 dotenv_path = find_dotenv()
@@ -125,11 +126,6 @@ def get_collected_vars(spatial_level):
     return return_list
 
 
-def get_eucalc_pathways():
-    pathways = list(db_access.get_col_values("pathways", "pathway_description"))
-    return pathways
-
-
 def get_eucalc_vars(var_type):
     if var_type == "disagg":
         sql_cmd = f"""SELECT var_name FROM var_details 
@@ -168,39 +164,56 @@ def save_predictor_df(spatial_level):
     ) as f:
         predictor_vars = tuple(json.load(f))
 
-    climate_experiment_id = db_access.get_primary_key(
-        "climate_experiments", {"climate_experiment": "RCP4.5"}
-    )
-
     final_df = None
-    for var_name in predictor_vars:
-        if "cproj_" in var_name:
-            sql_cmd = f"""SELECT d.value, r.region_code
-                FROM processed_data d
-                JOIN regions r ON d.region_id = r.id
-                JOIN var_details v ON d.var_detail_id = v.id
-                WHERE region_id IN {lau_region_ids}
-                AND d.year=2020
-                AND d.climate_experiment_id={climate_experiment_id}
-                AND v.var_name = '{var_name}';"""
+    # climate projections
+    cproj_vars = tuple([var for var in predictor_vars if var.startswith("cproj_")])
 
-        else:
-            sql_cmd = f"""SELECT d.value, r.region_code
-                FROM processed_data d
-                JOIN regions r ON d.region_id = r.id
-                JOIN var_details v ON d.var_detail_id = v.id
-                WHERE region_id IN {lau_region_ids}
-                AND v.var_name = '{var_name}';"""
+    if len(cproj_vars) > 0:
+
+        sql_cmd = f"""SELECT d.value, r.region_code, v.var_name
+                    FROM processed_data d
+                    JOIN regions r ON d.region_id = r.id
+                    JOIN var_details v ON d.var_detail_id = v.id
+                    WHERE region_id IN {lau_region_ids}
+                    AND d.year=2020
+                    AND d.climate_experiment='RCP4.5'
+                    AND v.var_name IN {cproj_vars};"""
 
         predictor_df = db_access.get_table(sql_cmd)
 
-        predictor_df.rename(columns={"value": var_name}, inplace=True)
+        for var_name, sub_df in predictor_df.groupby("var_name"):
+            sub_df.rename(columns={"value": var_name}, inplace=True)
+            sub_df.drop(columns="var_name", inplace=True)
+
+            if final_df is None:
+                final_df = sub_df
+            else:
+                final_df = pd.merge(final_df, sub_df, on="region_code", how="inner")
+
+    # collected data
+    non_cproj_vars = tuple([var for var in predictor_vars if var not in cproj_vars])
+
+    sql_cmd = f"""SELECT d.value, r.region_code, v.var_name
+                    FROM processed_data d
+                    JOIN regions r ON d.region_id = r.id
+                    JOIN var_details v ON d.var_detail_id = v.id
+                    WHERE region_id IN {lau_region_ids}
+                    AND v.var_name IN {non_cproj_vars};"""
+
+    predictor_df = db_access.get_table(sql_cmd)
+
+    for var_name, sub_df in predictor_df.groupby("var_name"):
+        sub_df.rename(columns={"value": var_name}, inplace=True)
+        sub_df.drop(columns="var_name", inplace=True)
 
         if final_df is None:
-            final_df = predictor_df
+            final_df = sub_df
         else:
-            final_df = pd.merge(final_df, predictor_df, on="region_code", how="inner")
+            final_df = pd.merge(final_df, sub_df, on="region_code", how="inner")
 
+    final_df = final_df.reindex(sorted(final_df.columns), axis=1)
+
+    # save data
     final_df.to_csv(
         os.path.join(
             os.path.dirname(__file__),
@@ -210,3 +223,20 @@ def save_predictor_df(spatial_level):
         ),
         index=False,
     )
+
+
+@with_db_connection()
+def clear_rows_from_processed_data(cursor, var_name, year=None, pathway=None):
+    if "cproj_" in var_name:
+        [var_name, year] = var_name.split("-")
+
+    sql_cmd = f"""DELETE FROM processed_data WHERE 
+                    var_detail_id = (SELECT id FROM var_details WHERE var_name = '{var_name}')"""
+
+    if year is not None:
+        sql_cmd = f"{sql_cmd} AND year = year"
+
+    if pathway is not None:
+        sql_cmd = f"{sql_cmd} AND pathway = '{pathway}'"
+
+    cursor.execute(sql_cmd)

@@ -46,6 +46,7 @@ rule disaggregate_climate_vars:
             disagg_manager.process_climate_var(wildcards.wc_climate_var_detail)
         
         except Exception as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_climate_var_detail)
             log_error(traceback.format_exc(), wildcards.wc_climate_var_detail)
             raise e
 

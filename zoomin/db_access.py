@@ -168,13 +168,10 @@ def get_processed_lau_data(cursor: Any, var_name: str) -> pd.DataFrame:
         _fk_var_id = get_primary_key("var_details", {"var_name": var_name})
 
         if var_name.startswith("cproj_"):
-            climate_experiment_id = get_primary_key(
-                "climate_experiments", {"climate_experiment": "RCP2.6"}
-            )
             sql_cmd = f"SELECT region_id, value, year, quality_rating_id FROM processed_data \
                         WHERE var_detail_id={_fk_var_id} AND \
                         year=2020 AND \
-                        climate_experiment_id={climate_experiment_id}"
+                        climate_experiment='RCP4.5'"
         else:
             sql_cmd = f"SELECT region_id, value, year, quality_rating_id FROM processed_data \
                         WHERE var_detail_id={_fk_var_id}"

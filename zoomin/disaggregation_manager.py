@@ -16,7 +16,7 @@ from zoomin import disaggregation as disagg
 ############## Climate data ##################
 
 
-def process_climate_var(climate_var_detail) -> None:
+def process_climate_var(climate_var_detail, agg_by_year=False) -> None:
     """Take staged climate data, disaggregate to LAU regions and add to the database."""  # TODO: docstring
 
     if "cproj_" in climate_var_detail:
@@ -26,7 +26,7 @@ def process_climate_var(climate_var_detail) -> None:
 
         var_detail_id = get_primary_key("var_details", {"var_name": var_name})
 
-        sql_cmd = f"""SELECT r.region_code, d.region_id, d.climate_experiment_id, d.var_detail_id, d.value, d.quality_rating_id, d.year, d.proxy_detail_id
+        sql_cmd = f"""SELECT r.region_code, d.region_id, d.climate_experiment, d.var_detail_id, d.value, d.quality_rating_id, d.year, d.proxy_detail_id
                         FROM staged_climate_data d
                         JOIN regions r ON d.region_id = r.id
                         WHERE d.var_detail_id = {var_detail_id} AND d.year = {data_year}
@@ -37,7 +37,7 @@ def process_climate_var(climate_var_detail) -> None:
         var_name = climate_var_detail
         var_detail_id = get_primary_key("var_details", {"var_name": var_name})
 
-        sql_cmd = f"""SELECT r.region_code, d.region_id, d.climate_experiment_id, d.var_detail_id, d.value, d.quality_rating_id, d.year, d.proxy_detail_id
+        sql_cmd = f"""SELECT r.region_code, d.region_id, d.climate_experiment, d.var_detail_id, d.value, d.quality_rating_id, d.year, d.proxy_detail_id
                         FROM staged_climate_data d
                         JOIN regions r ON d.region_id = r.id
                         WHERE d.var_detail_id = {var_detail_id}
@@ -56,7 +56,7 @@ def process_climate_var(climate_var_detail) -> None:
     data_to_agg = var_data[
         [
             "region_code",
-            "climate_experiment_id",
+            "climate_experiment",
             "var_detail_id",
             "value",
             "quality_rating_id",
@@ -65,13 +65,15 @@ def process_climate_var(climate_var_detail) -> None:
         ]
     ].copy()
 
-    disagg.aggregate_data(data_to_agg, var_name, source_resolution, "staged_data")
+    disagg.aggregate_data(
+        data_to_agg, var_name, source_resolution, "staged_data", agg_by_year
+    )
 
     # STEP 3: Disaggregate
     data_to_disagg = var_data[
         [
             "region_code",
-            "climate_experiment_id",
+            "climate_experiment",
             "var_detail_id",
             "value",
             "quality_rating_id",
@@ -82,14 +84,18 @@ def process_climate_var(climate_var_detail) -> None:
 
     # NOTE: all climate data is disaggregated the same way - same value all regions
     disagg.distribute_data_equally(
-        data_to_disagg, var_name, source_resolution, disaggregation_quality_rating
+        data_to_disagg,
+        var_name,
+        source_resolution,
+        disaggregation_quality_rating,
+        agg_by_year,
     )
 
 
 ############## Collected data ##################
 
 
-def process_collected_var(var_name) -> None:
+def process_collected_var(var_name, agg_by_year=False) -> None:
     """Take processed and saved data, disaggregate to LAU regions and add to the database."""  # TODO: docstring
 
     var_details_row = get_table(
@@ -125,7 +131,9 @@ def process_collected_var(var_name) -> None:
         ]
     ].copy()
 
-    disagg.aggregate_data(data_to_agg, var_name, source_resolution, "staged_data")
+    disagg.aggregate_data(
+        data_to_agg, var_name, source_resolution, "staged_data", agg_by_year
+    )
 
     ##STEP 3: Disaggregate (if source_resolution != LAU)
     if source_resolution != "LAU":
@@ -133,10 +141,10 @@ def process_collected_var(var_name) -> None:
 
         proxy_details_row = get_table(
             f"""SELECT disaggregation_proxy, 
-                                      disaggregation_quality_rating,
-                                      disaggregation_binary_criteria,
-                                      random_forest_model
-                                      from proxy_details where id={proxy_detail_id}"""
+                    disaggregation_quality_rating,
+                    disaggregation_binary_criteria,
+                    random_forest_model
+                    from proxy_details where id={proxy_detail_id}"""
         )
 
         disagg_proxy = proxy_details_row["disaggregation_proxy"][0]
@@ -162,6 +170,7 @@ def process_collected_var(var_name) -> None:
                     var_name,
                     source_resolution,
                     disaggregation_quality_rating,
+                    agg_by_year,
                 )
 
             elif "Disaggregation using random forest model." in disagg_proxy:
@@ -187,6 +196,7 @@ def process_collected_var(var_name) -> None:
                     disagg_proxy,
                     source_resolution,
                     disaggregation_quality_rating,
+                    agg_by_year,
                 )
 
             else:
@@ -212,6 +222,7 @@ def process_collected_var(var_name) -> None:
                     disagg_proxy,
                     disagg_binary_criteria,
                     disaggregation_quality_rating,
+                    agg_by_year,
                 )
                 return bad_proxy
 
@@ -224,17 +235,14 @@ def process_collected_var(var_name) -> None:
 ############## EUCalc data ##################
 
 
-def process_eucalc_var(var_name, pathway_description, year) -> None:
+def process_eucalc_var(var_name, pathway, year) -> None:
     """Take processed and saved data, disaggregate to LAU regions and add to the database."""  # TODO: docstring
 
     var_detail_id = get_primary_key("var_details", {"var_name": var_name})
-    pathway_id = get_primary_key(
-        "pathways", {"pathway_description": pathway_description}
-    )
 
-    sql_cmd = f"""SELECT region_id, var_detail_id, pathway_id, value, quality_rating_id, year, proxy_detail_id
+    sql_cmd = f"""SELECT region_id, var_detail_id, pathway, value, quality_rating_id, year, proxy_detail_id
                     FROM staged_eucalc_data 
-                    WHERE var_detail_id = {var_detail_id} AND pathway_id = {pathway_id} AND year = {year}
+                    WHERE var_detail_id = {var_detail_id} AND pathway = '{pathway}' AND year = {year}
     """
     var_data = get_table(sql_cmd)
 
@@ -259,7 +267,7 @@ def process_eucalc_var(var_name, pathway_description, year) -> None:
         [
             "region_code",
             "var_detail_id",
-            "pathway_id",
+            "pathway",
             "value",
             "quality_rating_id",
             "year",
