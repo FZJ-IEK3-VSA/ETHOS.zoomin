@@ -3,6 +3,7 @@ import json
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from zoomin import db_access
+from zoomin.db_access import with_db_connection
 
 # find .env automagically by walking up directories until it's found
 dotenv_path = find_dotenv()
@@ -125,11 +126,6 @@ def get_collected_vars(spatial_level):
     return return_list
 
 
-def get_eucalc_pathways():
-    pathways = list(db_access.get_col_values("pathways", "pathway_description"))
-    return pathways
-
-
 def get_eucalc_vars(var_type):
     if var_type == "disagg":
         sql_cmd = f"""SELECT var_name FROM var_details 
@@ -173,9 +169,6 @@ def save_predictor_df(spatial_level):
     cproj_vars = tuple([var for var in predictor_vars if var.startswith("cproj_")])
 
     if len(cproj_vars) > 0:
-        climate_experiment_id = db_access.get_primary_key(
-            "climate_experiments", {"climate_experiment": "RCP4.5"}
-        )
 
         sql_cmd = f"""SELECT d.value, r.region_code, v.var_name
                     FROM processed_data d
@@ -183,7 +176,7 @@ def save_predictor_df(spatial_level):
                     JOIN var_details v ON d.var_detail_id = v.id
                     WHERE region_id IN {lau_region_ids}
                     AND d.year=2020
-                    AND d.climate_experiment_id={climate_experiment_id}
+                    AND d.climate_experiment='RCP4.5'
                     AND v.var_name IN {cproj_vars};"""
 
         predictor_df = db_access.get_table(sql_cmd)
@@ -230,3 +223,20 @@ def save_predictor_df(spatial_level):
         ),
         index=False,
     )
+
+
+@with_db_connection()
+def clear_rows_from_processed_data(cursor, var_name, year=None, pathway=None):
+    if "cproj_" in var_name:
+        [var_name, year] = var_name.split("-")
+
+    sql_cmd = f"""DELETE FROM processed_data WHERE 
+                    var_detail_id = (SELECT id FROM var_details WHERE var_name = '{var_name}')"""
+
+    if year is not None:
+        sql_cmd = f"{sql_cmd} AND year = year"
+
+    if pathway is not None:
+        sql_cmd = f"{sql_cmd} AND pathway = '{pathway}'"
+
+    cursor.execute(sql_cmd)

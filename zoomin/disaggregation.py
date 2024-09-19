@@ -37,7 +37,7 @@ def get_relative_spatial_levels(spatial_level, spatial_direction):
         return hierarchy[:level_index]
 
 
-def aggregate_data(var_data, var_name, source_resolution, data_type):
+def aggregate_data(var_data, var_name, source_resolution, data_type, agg_by_year):
     def _perform_aggregation(data_group):
         # aggregate the value
         if agg_method == "sum":
@@ -73,17 +73,13 @@ def aggregate_data(var_data, var_name, source_resolution, data_type):
             )  # taking the most repeated year in case of mixed years
             data_dict.update({"year": agg_year})
 
-        if "climate_experiment_id" in data_group.columns:
+        if "climate_experiment" in data_group.columns:
             data_dict.update(
-                {
-                    "climate_experiment_id": data_group["climate_experiment_id"]
-                    .unique()
-                    .item()
-                }
+                {"climate_experiment": data_group["climate_experiment"].unique().item()}
             )
 
-        if "pathway_id" in data_group.columns:
-            data_dict.update({"pathway_id": data_group["pathway_id"].unique().item()})
+        if "pathway" in data_group.columns:
+            data_dict.update({"pathway": data_group["pathway"].unique().item()})
 
         return pd.Series(data_dict)
 
@@ -108,11 +104,14 @@ def aggregate_data(var_data, var_name, source_resolution, data_type):
 
             group_vars = ["region_code"]
 
-            if "climate_experiment_id" in var_data.columns:
-                group_vars.append("climate_experiment_id")
+            if "climate_experiment" in var_data.columns:
+                group_vars.append("climate_experiment")
 
-            if "pathway_id" in var_data.columns:
-                group_vars.append("pathway_id")
+            if "pathway" in var_data.columns:
+                group_vars.append("pathway")
+
+            if agg_by_year:
+                group_vars.append("year")
 
             agg_df = agg_df.groupby(group_vars).apply(_perform_aggregation)
 
@@ -143,7 +142,11 @@ def aggregate_data(var_data, var_name, source_resolution, data_type):
 
 
 def distribute_data_equally(
-    var_data, var_name, source_resolution, disaggregation_quality_rating
+    var_data,
+    var_name,
+    source_resolution,
+    disaggregation_quality_rating,
+    agg_by_year=False,
 ):
     # TODO: docstrings
     # STEP1: Disaggregate
@@ -188,7 +191,9 @@ def distribute_data_equally(
     )
     data_to_agg.rename(columns={"region_code_x": "region_code"}, inplace=True)
 
-    aggregate_data(data_to_agg, var_name, source_resolution, "disaggregated_data")
+    aggregate_data(
+        data_to_agg, var_name, source_resolution, "disaggregated_data", agg_by_year
+    )
 
 
 def perform_random_forest_based_disaggregation(
@@ -198,6 +203,7 @@ def perform_random_forest_based_disaggregation(
     disagg_proxy,
     source_resolution,
     disaggregation_quality_rating,
+    agg_by_year=False,
 ):
     # TODO: docstrings
     # STEP1: Disaggregate
@@ -247,16 +253,14 @@ def perform_random_forest_based_disaggregation(
         )
 
         if predictor.startswith("cproj_"):
-            climate_experiment_id = get_primary_key(
-                "climate_experiments", {"climate_experiment": "RCP2.6"}
-            )
             sql_cmd = f"""SELECT r.region_code, d.quality_rating_id
                         FROM processed_data d
                         JOIN regions r ON d.region_id = r.id
                         WHERE var_detail_id = {predictor_var_detail_id}
                             AND r.id in {lau_region_ids}
                             AND d.year=2020 
-                            AND d.climate_experiment_id={climate_experiment_id}"""
+                            AND d.climate_experiment='RCP4.5'
+                            """
         else:
             sql_cmd = f"""SELECT r.region_code, d.quality_rating_id
                         FROM processed_data d
@@ -320,7 +324,9 @@ def perform_random_forest_based_disaggregation(
 
     # STEP 2: Aggregate disaggregated data till source_resolution-1 spatial level
     # - reason: quality rating depends on proxy and proxy data
-    aggregate_data(final_df, var_name, source_resolution, "disaggregated_data")
+    aggregate_data(
+        final_df, var_name, source_resolution, "disaggregated_data", agg_by_year
+    )
 
 
 def perform_proxy_based_disaggregation(
@@ -330,6 +336,7 @@ def perform_proxy_based_disaggregation(
     disagg_proxy,
     disagg_binary_criteria,
     disaggregation_quality_rating,
+    agg_by_year=False,
 ):
     # TODO: docstrings
     # STEP1: Disaggregate
@@ -362,7 +369,9 @@ def perform_proxy_based_disaggregation(
     disagg_db_df = final_df.copy(deep=True)
     disagg_db_df.drop(columns=["match_region_code"], inplace=True)
 
-    aggregate_data(disagg_db_df, var_name, source_resolution, "disaggregated_data")
+    aggregate_data(
+        disagg_db_df, var_name, source_resolution, "disaggregated_data", agg_by_year
+    )
 
     if any(is_bad_proxy_list):
         return "bad_proxy"

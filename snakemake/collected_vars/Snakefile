@@ -61,6 +61,7 @@ rule disaggregate_collected_vars_lau:
                 bad_proxy_dict.update({wildcards.wc_collected_var_lau: bad_proxy})
 
         except Exception as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_lau)
             log_error(traceback.format_exc(), wildcards.wc_collected_var_lau)
             raise e
 
@@ -99,6 +100,7 @@ rule disaggregate_collected_vars_nuts3:
                 bad_proxy_dict.update({wildcards.wc_collected_var_nuts3: bad_proxy})
 
         except Exception as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_nuts3)
             log_error(traceback.format_exc(), wildcards.wc_collected_var_nuts3)
             raise e
 
@@ -136,6 +138,7 @@ rule disaggregate_collected_vars_nuts2:
                 bad_proxy_dict.update({wildcards.wc_collected_var_nuts2: bad_proxy})
 
         except Exception as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_nuts2)
             log_error(traceback.format_exc(), wildcards.wc_collected_var_nuts2)
             raise e
 
@@ -156,12 +159,18 @@ rule disaggregate_collected_vars_nuts0:
         touch("output_logs/{wc_db_name}/{wc_collected_var_nuts0}.log")
     run:
         try:
-            bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_nuts0)
+            if wildcards.wc_collected_var_nuts0.startswith("tra_vehicle_lifetime"):
+                agg_by_year=True 
+            else:
+                agg_by_year=False
+
+            bad_proxy = disagg_manager.process_collected_var(wildcards.wc_collected_var_nuts0, agg_by_year)
 
             if bad_proxy is not None:
                 bad_proxy_dict.update({wildcards.wc_collected_var_nuts0: bad_proxy})
 
         except Exception as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_nuts0)
             log_error(traceback.format_exc(), wildcards.wc_collected_var_nuts0)
             raise e
 
@@ -186,6 +195,7 @@ rule calculate_collected_vars_post_disaggregation:
             perform_post_disagg_calculation(wildcards.wc_collected_var_post_disagg_calc)
 
         except Exception as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_post_disagg_calc)
             log_error(traceback.format_exc(), wildcards.wc_collected_var_post_disagg_calc)
             raise e
 

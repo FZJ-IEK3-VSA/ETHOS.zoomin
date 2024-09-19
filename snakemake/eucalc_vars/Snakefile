@@ -28,7 +28,7 @@ rule all:
     input:
         "bad_proxy_log.json"
 
-pathways = sm_utls.get_eucalc_pathways()
+pathways = ["national", "with_behavioural_changes"]
 eucalc_vars_to_disagg = sm_utls.get_eucalc_vars("disagg")
 eucalc_vars_post_disagg_calc = sm_utls.get_eucalc_vars("post_disagg_calc")
 
@@ -62,6 +62,8 @@ rule disaggregate_eucalc_vars:
                 bad_proxy_dict.update({f"{wildcards.wc_eucalc_var_to_disagg}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway}": bad_proxy})
 
         except Exception as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_eucalc_var_to_disagg, wc_eucalc_year, wc_pathway)
+            print('DELETED var')
             log_error(traceback.format_exc(), f"{wildcards.wc_eucalc_var_to_disagg}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway}")
             raise e
             
@@ -88,6 +90,7 @@ rule calculate_eucalc_vars_post_disaggregation:
             perform_post_disagg_calculation(wildcards.wc_eucalc_var_post_disagg_calc)
 
         except Exception as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_eucalc_var_post_disagg_calc)
             log_error(traceback.format_exc(), wildcards.wc_eucalc_var_post_disagg_calc)
             raise e
 
