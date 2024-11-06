@@ -85,6 +85,26 @@ def get_db_engine() -> Any:
 
 
 @with_db_connection()
+def get_values(cursor, sql_cmd):
+    cursor.execute(sql_cmd)
+    result = cursor.fetchall()
+
+    result_list = [res[0] for res in result]
+
+    if len(result_list) == 1:
+        return result_list[0]
+    else:
+        return result_list
+
+
+@with_db_connection()
+def execute_sql_cmd(cursor: Any, sql_cmd) -> Any:
+    """Execute any sql_cmd passed"""
+
+    cursor.execute(sql_cmd)
+
+
+@with_db_connection()
 def get_col_values(
     cursor: Any, table: str, col: str, cols_criteria: Optional[dict] = None
 ) -> Any:
@@ -161,34 +181,31 @@ def get_regions(cursor: Any, resolution: str) -> pd.DataFrame:
 
 
 @with_db_connection()
-def get_processed_lau_data(cursor: Any, var_name: str) -> pd.DataFrame:
-    """Return dataframe from processed_data table at LAU level."""  # TODO: update docstring
+def get_proxy_data(cursor: Any, var_name: str, spatial_resolution) -> pd.DataFrame:
+    """Return dataframe from processed_data table at specified resolution."""  # TODO: update docstring
 
     try:
-        _fk_var_id = get_primary_key("var_details", {"var_name": var_name})
-
         if var_name.startswith("cproj_"):
-            sql_cmd = f"SELECT region_id, value, year, quality_rating_id FROM processed_data \
-                        WHERE var_detail_id={_fk_var_id} AND \
-                        year=2020 AND \
-                        climate_experiment='RCP4.5'"
+            sql_cmd = f"""SELECT d.region_id, r.region_code, d.value, d.year, d.confidence_level_id 
+                            FROM processed_data d
+                            JOIN regions r ON d.region_id = r.id
+                            WHERE d.var_detail_id = (SELECT id FROM var_details WHERE var_name = '{var_name}') AND 
+                                d.year=2020 AND 
+                                d.climate_experiment='RCP4.5' AND 
+                                d.region_id IN (SELECT id FROM regions WHERE resolution = '{spatial_resolution}');"""
         else:
-            sql_cmd = f"SELECT region_id, value, year, quality_rating_id FROM processed_data \
-                        WHERE var_detail_id={_fk_var_id}"
+            sql_cmd = f"""SELECT d.region_id, r.region_code, d.value, d.year, d.confidence_level_id 
+                        FROM processed_data d
+                        JOIN regions r ON d.region_id = r.id
+                        WHERE d.var_detail_id = (SELECT id FROM var_details WHERE var_name = '{var_name}') AND 
+                             d.region_id IN (SELECT id FROM regions WHERE resolution = '{spatial_resolution}');"""
 
         data_df = get_table(sql_cmd)
 
     except:
         raise ValueError(f"{var_name} not found. Check your proxy equation")
 
-    regions_df = get_regions("LAU")
-
-    final_df = pd.merge(
-        data_df, regions_df, left_on="region_id", right_on="id", how="inner"
-    )
-    final_df.drop(columns=["id"], inplace=True)
-
-    return final_df
+    return data_df
 
 
 def _psql_insert_copy(table: Any, conn: Any, keys: list, data_iter: Iterable) -> None:

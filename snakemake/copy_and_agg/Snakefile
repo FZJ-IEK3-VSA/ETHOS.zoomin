@@ -1,0 +1,39 @@
+from dotenv import load_dotenv, find_dotenv
+
+# find .env automagically by walking up directories until it's found
+dotenv_path = find_dotenv()
+# load up the entries as environment variables
+load_dotenv(dotenv_path)
+
+db_name = os.environ.get("DB_NAME")
+
+# Define a wildcard for each parameter
+wildcard_constraints:
+    wc_db_name = db_name
+
+rule all:
+    input:
+        f"output_logs/{db_name}/copy_eucalc_data.log"
+
+
+rule copy_and_aggregate_climate_data:
+    output:
+        touch("output_logs/{wc_db_name}/copy_and_aggregate_climate_data.log")
+    script:
+        "../../zoomin/copy_and_aggregate_climate_data.py"
+
+rule copy_and_aggregate_collected_data:
+    input:  
+        f"output_logs/{db_name}/copy_and_aggregate_climate_data.log" 
+    output:
+        touch("output_logs/{wc_db_name}/copy_and_aggregate_collected_data.log")
+    script:
+        "../../zoomin/copy_and_aggregate_collected_data.py"
+
+rule copy_eucalc_data:
+    input:  
+        f"output_logs/{db_name}/copy_and_aggregate_collected_data.log" 
+    output:
+        touch("output_logs/{wc_db_name}/copy_eucalc_data.log")
+    script:
+        "../../zoomin/copy_eucalc_data.py"
