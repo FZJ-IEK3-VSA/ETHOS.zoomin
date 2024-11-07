@@ -93,17 +93,29 @@ target/
 data/
 
 # Snakemake
-snakemake/climate_vars/.snakemake
-snakemake/climate_vars/output_logs
-snakemake/climate_vars/bad_proxy_log.json
-snakemake/climate_vars/*.log
+snakemake/copy_and_agg/.snakemake
+snakemake/copy_and_agg/output_logs
 
-snakemake/collected_vars/.snakemake
-snakemake/collected_vars/output_logs
-snakemake/collected_vars/bad_proxy_log.json
-snakemake/collected_vars/*.log
+snakemake/lau_disagg/.snakemake
+snakemake/lau_disagg/output_logs
+snakemake/lau_disagg/bad_proxy_log.json
+snakemake/lau_disagg/*.log
 
-snakemake/eucalc_vars/.snakemake
-snakemake/eucalc_vars/output_logs
-snakemake/eucalc_vars/bad_proxy_log.json
-snakemake/eucalc_vars/*.log
+snakemake/nuts1_disagg/.snakemake
+snakemake/nuts1_disagg/output_logs
+snakemake/nuts1_disagg/bad_proxy_log.json
+snakemake/nuts1_disagg/*.log
+
+snakemake/nuts2_disagg/.snakemake
+snakemake/nuts2_disagg/output_logs
+snakemake/nuts2_disagg/bad_proxy_log.json
+snakemake/nuts2_disagg/*.log
+
+snakemake/nuts3_disagg/.snakemake
+snakemake/nuts3_disagg/output_logs
+snakemake/nuts3_disagg/bad_proxy_log.json
+snakemake/nuts3_disagg/*.log
+
+snakemake/post_disagg_calculation/.snakemake
+snakemake/post_disagg_calculation/output_logs
+snakemake/post_disagg_calculation/*.log

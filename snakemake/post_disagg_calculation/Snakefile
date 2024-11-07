@@ -1,0 +1,63 @@
+import os
+import time 
+import traceback
+import json
+from zoomin.post_disagg_calculation import perform_post_disagg_calculation
+from zoomin import snakemake_utils as sm_utls
+from zoomin.db_access import execute_sql_cmd
+from dotenv import load_dotenv, find_dotenv
+
+# find .env automagically by walking up directories until it's found
+dotenv_path = find_dotenv()
+# load up the entries as environment variables
+load_dotenv(dotenv_path)
+
+db_name = os.environ.get("DB_NAME")
+
+bad_proxy_dict = {}
+
+mini_db = int(os.environ.get("MINI_DB"))
+
+def log_error(error, file_name):
+    FILE_PATH = f"output_logs/{db_name}/error_{file_name}.log"
+
+    with open(FILE_PATH, 'w') as f:
+        print(error)
+        f.write(error)
+
+rule all:
+    input:
+        "finished.log"
+
+post_disagg_calc_vars = sm_utls.get_post_disagg_calc_vars() 
+
+# Define a wildcard for each parameter
+wildcard_constraints:
+    wc_post_disagg_calc_var = "|".join(post_disagg_calc_vars),
+    wc_db_name = db_name
+
+
+rule calculate_post_disaggregation:
+    output:
+        touch("output_logs/{wc_db_name}/{wc_post_disagg_calc_var}.log")
+    run:
+        try:
+            # delete the data if added before. Required for step-wise spatial disaggregation and post disagg calculation
+            execute_sql_cmd(f"DELETE FROM processed_data WHERE var_detail_id = (SELECT id FROM var_details WHERE var_name = '{wildcards.wc_post_disagg_calc_var}');")
+
+            perform_post_disagg_calculation(wildcards.wc_post_disagg_calc_var)
+
+        except Exception as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_post_disagg_calc_var)
+            log_error(traceback.format_exc(), wildcards.wc_post_disagg_calc_var)
+            raise e
+
+#================================================================================================
+
+rule final:
+    input:
+        expand("output_logs/{db_name}/{var_name}.log", 
+                db_name=db_name,
+                var_name=post_disagg_calc_vars)
+    output:
+        touch("finished.log")

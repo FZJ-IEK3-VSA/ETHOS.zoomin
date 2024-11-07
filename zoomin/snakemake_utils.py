@@ -1,6 +1,4 @@
 import os
-import json
-import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from zoomin import db_access
 from zoomin.db_access import with_db_connection
@@ -15,16 +13,11 @@ db_name = os.environ.get("DB_NAME")
 
 collected_vars_for_mini_db = [
     "relative_gross_value_added_nace_sector_a",
-    "number_of_dairy_cows",
     "road_transport_of_freight",
     "foreign_born_population",
-    "heat_production_with_lignite",
-    "heat_production_with_coal",
-    "heat_production_with_natural_gas",
-    "heat_production_with_peat",
     "active_citizenship",
     "plastic_waste",
-    "people_at_risk_of_poverty_or_social_exclusion",
+    "percentage_of_people_at_risk_of_poverty_or_social_exclusion",
     "income_of_households",
     "non_residential_energy_demand_space_cooling",
     "people_with_tertiary_education",
@@ -32,6 +25,25 @@ collected_vars_for_mini_db = [
     "air_transport_of_freight",
     "maritime_transport_of_freight",
     "electricity_prices_for_household_consumers",
+    "population",
+    "statistical_area",
+    "heat_demand_residential",
+    "heat_demand_non_residential",
+    "gross_value_added_nace_sector_a",
+    "gross_value_added",
+    "road_network",
+    "permanently_irrigated_land_cover",
+    "rice_fields_cover",
+    "vineyards_cover",
+    "fruit_trees_and_berry_plantations_cover",
+    "olive_groves_cover",
+    "pastures_cover",
+    "permanent_crops_cover",
+    "complex_cultivation_patterns_cover",
+    "agriculture_with_natural_vegetation_cover",
+    "agro_forestry_areas_cover",
+    "number_of_cattle",
+    "deaths",
 ]
 
 eucalc_vars_for_mini_db = [
@@ -62,23 +74,31 @@ eucalc_vars_for_mini_db = [
     "eucalc_elc_old_capacity_fossil_coal",
 ]
 
+climate_vars_for_mini_db = [
+    "cproj_annual_mean_temperature_cooling_degree_days",
+    "cimp_historical_probability_of_very_high_fire_risk_mean",
+]
+
 
 def get_climate_vars():
-    return_list = []
 
     if mini_db == 1:
         years = ["2020", "2099"]
     else:
         years = [str(i) for i in range(2020, 2100)]
 
-    sql_cmd = f"""SELECT var_name FROM var_details 
-                WHERE 
-                    var_name LIKE 'cimp_%%'
-                    OR var_name LIKE 'cproj_%%'"""
+    if mini_db == 1:
+        var_list = climate_vars_for_mini_db
+    else:
+        sql_cmd = f"""SELECT var_name FROM var_details 
+                    WHERE 
+                        var_name LIKE 'cimp_%%'
+                        OR var_name LIKE 'cproj_%%'"""
 
-    var_names = db_access.get_table(sql_cmd)
+        var_list = db_access.get_values(sql_cmd)
 
-    for var_name in var_names["var_name"]:
+    return_list = []
+    for var_name in var_list:
         for year in years:
             if "cproj_" in var_name:
                 for year in years:
@@ -90,35 +110,19 @@ def get_climate_vars():
 
 
 def get_collected_vars(spatial_level):
-    """spatial_level: could be LAU, NUTS3, NUTS2, NUTS0 or with_post_disagg_calc"""
+    """spatial_level: could be LAU, NUTS3, NUTS2, or NUTS0"""
 
-    if spatial_level in ["LAU", "NUTS3", "NUTS2", "NUTS0"]:
-        original_resolution_id = db_access.get_primary_key(
-            "original_resolutions", {"original_resolution": spatial_level}
-        )
-        sql_cmd = f"""SELECT var_name FROM var_details 
-                    WHERE 
-                        (var_name NOT LIKE 'eucalc_%%' AND 
-                        var_name NOT LIKE 'cimp_%%' AND 
-                        var_name NOT LIKE 'cproj_%%')
-                        AND original_resolution_id={original_resolution_id}
-                        AND post_disagg_calculation_eq IS NULL;"""
+    sql_cmd = f"""SELECT var_name FROM var_details 
+                WHERE 
+                    (var_name NOT LIKE 'eucalc_%%' AND 
+                    var_name NOT LIKE 'cimp_%%' AND 
+                    var_name NOT LIKE 'cproj_%%')
+                    AND original_resolution_id=(SELECT id FROM original_resolutions WHERE original_resolution = '{spatial_level}')
+                    AND post_disagg_calculation_eq IS NULL;"""
 
-    else:
-        sql_cmd = f"""SELECT var_name FROM var_details 
-                    WHERE 
-                        (var_name NOT LIKE 'eucalc_%%' AND 
-                        var_name NOT LIKE 'cimp_%%' AND 
-                        var_name NOT LIKE 'cproj_%%')
-                        AND post_disagg_calculation_eq IS NOT NULL;"""
+    return_list = db_access.get_values(sql_cmd)
 
-    var_names = db_access.get_table(sql_cmd)
-
-    return_list = var_names["var_name"]
-
-    if (mini_db == 1) & (
-        spatial_level not in ["LAU", "NUTS3"]
-    ):  # if its LAU or NUTS3, we need all variables for random forest
+    if mini_db == 1:
         return_list = list(
             set(return_list).intersection(set(collected_vars_for_mini_db))
         )
@@ -126,22 +130,13 @@ def get_collected_vars(spatial_level):
     return return_list
 
 
-def get_eucalc_vars(var_type):
-    if var_type == "disagg":
-        sql_cmd = f"""SELECT var_name FROM var_details 
-                    WHERE 
-                    var_name LIKE 'eucalc_%%' 
-                    AND post_disagg_calculation_eq IS NULL;"""
+def get_eucalc_vars():
+    sql_cmd = f"""SELECT var_name FROM var_details 
+                WHERE 
+                var_name LIKE 'eucalc_%%' 
+                AND post_disagg_calculation_eq IS NULL;"""
 
-    else:
-        sql_cmd = f"""SELECT var_name FROM var_details 
-                    WHERE 
-                    var_name LIKE 'eucalc_%%' 
-                    AND post_disagg_calculation_eq IS NOT NULL;"""
-
-    var_names = db_access.get_table(sql_cmd)
-
-    return_list = var_names["var_name"]
+    return_list = db_access.get_values(sql_cmd)
 
     if mini_db == 1:
         return_list = list(set(return_list).intersection(set(eucalc_vars_for_mini_db)))
@@ -149,89 +144,35 @@ def get_eucalc_vars(var_type):
     return return_list
 
 
-def save_predictor_df(spatial_level):
-    lau_region_ids = tuple(
-        db_access.get_col_values("regions", "id", {"resolution": "LAU"})
-    )
+def get_post_disagg_calc_vars():
 
-    with open(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "data",
-            f"predictor_vars_{spatial_level}.json",
+    sql_cmd = f"""SELECT var_name FROM var_details 
+                WHERE post_disagg_calculation_eq IS NOT NULL;"""
+
+    return_list = db_access.get_values(sql_cmd)
+
+    if mini_db == 1:
+        return_list = list(
+            set(return_list).intersection(
+                set(collected_vars_for_mini_db).union(set(eucalc_vars_for_mini_db))
+            )
         )
-    ) as f:
-        predictor_vars = tuple(json.load(f))
 
-    final_df = None
-    # climate projections
-    cproj_vars = tuple([var for var in predictor_vars if var.startswith("cproj_")])
-
-    if len(cproj_vars) > 0:
-
-        sql_cmd = f"""SELECT d.value, r.region_code, v.var_name
-                    FROM processed_data d
-                    JOIN regions r ON d.region_id = r.id
-                    JOIN var_details v ON d.var_detail_id = v.id
-                    WHERE region_id IN {lau_region_ids}
-                    AND d.year=2020
-                    AND d.climate_experiment='RCP4.5'
-                    AND v.var_name IN {cproj_vars};"""
-
-        predictor_df = db_access.get_table(sql_cmd)
-
-        for var_name, sub_df in predictor_df.groupby("var_name"):
-            sub_df.rename(columns={"value": var_name}, inplace=True)
-            sub_df.drop(columns="var_name", inplace=True)
-
-            if final_df is None:
-                final_df = sub_df
-            else:
-                final_df = pd.merge(final_df, sub_df, on="region_code", how="inner")
-
-    # collected data
-    non_cproj_vars = tuple([var for var in predictor_vars if var not in cproj_vars])
-
-    sql_cmd = f"""SELECT d.value, r.region_code, v.var_name
-                    FROM processed_data d
-                    JOIN regions r ON d.region_id = r.id
-                    JOIN var_details v ON d.var_detail_id = v.id
-                    WHERE region_id IN {lau_region_ids}
-                    AND v.var_name IN {non_cproj_vars};"""
-
-    predictor_df = db_access.get_table(sql_cmd)
-
-    for var_name, sub_df in predictor_df.groupby("var_name"):
-        sub_df.rename(columns={"value": var_name}, inplace=True)
-        sub_df.drop(columns="var_name", inplace=True)
-
-        if final_df is None:
-            final_df = sub_df
-        else:
-            final_df = pd.merge(final_df, sub_df, on="region_code", how="inner")
-
-    final_df = final_df.reindex(sorted(final_df.columns), axis=1)
-
-    # save data
-    final_df.to_csv(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "data",
-            f"predictor_df_for_{spatial_level}_{db_name}.csv",
-        ),
-        index=False,
-    )
+    return return_list
 
 
 @with_db_connection()
-def clear_rows_from_processed_data(cursor, var_name, year=None, pathway=None):
+def clear_rows_from_processed_data(
+    cursor, var_name, target_resolution=None, year=None, pathway=None
+):
     if "cproj_" in var_name:
         [var_name, year] = var_name.split("-")
 
     sql_cmd = f"""DELETE FROM processed_data WHERE 
                     var_detail_id = (SELECT id FROM var_details WHERE var_name = '{var_name}')"""
+
+    if target_resolution is not None:
+        sql_cmd = f"{sql_cmd} AND region_id IN (SELECT id FROM regions WHERE resolution = '{target_resolution}')"
 
     if year is not None:
         sql_cmd = f"{sql_cmd} AND year = year"
