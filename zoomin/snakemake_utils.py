@@ -17,7 +17,7 @@ collected_vars_for_mini_db = [
     "foreign_born_population",
     "active_citizenship",
     "plastic_waste",
-    "people_at_risk_of_poverty_or_social_exclusion",
+    "percentage_of_people_at_risk_of_poverty_or_social_exclusion",
     "income_of_households",
     "non_residential_energy_demand_space_cooling",
     "people_with_tertiary_education",
