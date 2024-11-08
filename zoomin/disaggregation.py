@@ -65,6 +65,7 @@ def perform_proxy_based_disaggregation(
     disagg_proxy,
     disagg_binary_criteria,
     proxy_confidence_level,
+    var_unit,
 ):
     # TODO: docstrings
     # STEP1: Disaggregate
@@ -87,6 +88,10 @@ def perform_proxy_based_disaggregation(
     )
 
     final_df.drop(columns=["region_code", "match_region_code"], inplace=True)
+
+    # round to whole number if var_unit is number like population values
+    if var_unit == "number":
+        final_df["value"] = final_df["value"].astype(int)
 
     # TODO: the values should be integers for integer type data . For example: population
     add_to_processed_data(final_df)
