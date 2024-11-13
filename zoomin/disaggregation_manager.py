@@ -1,9 +1,5 @@
 """Main functions to process climate vars, collected vars and EUCalc vars of all spatial levels"""
-from zoomin.db_access import (
-    get_primary_key,
-    get_table,
-    add_to_processed_data,
-)
+from zoomin.db_access import get_table, get_values
 from zoomin import disaggregation as disagg
 
 ############## Climate data ##################
@@ -57,7 +53,9 @@ def disaggregate_collected_var(var_name, source_resolution, target_resolution) -
                     WHERE var_detail_id = (SELECT id FROM var_details WHERE var_name = '{var_name}');"""
     var_data = get_table(sql_cmd)
 
-    var_unit = f"SELECT var_unit FROM var_details WHERE var_name = '{var_name}';"
+    var_unit = get_values(
+        f"SELECT var_unit FROM var_details WHERE var_name = '{var_name}';"
+    )
 
     # Disaggregate
     proxy_detail_id = var_data["proxy_detail_id"][0].item()
