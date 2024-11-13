@@ -51,7 +51,7 @@ def disaggregate_collected_var(var_name, source_resolution, target_resolution) -
     """Disaggregate to the specified spatial resolution and add to the database."""  # TODO: docstring
 
     # get data
-    sql_cmd = f"""SELECT r.region_code, d.var_detail_id, d.value, d.confidence_level_id, d.year, d.proxy_detail_id,
+    sql_cmd = f"""SELECT r.region_code, d.var_detail_id, d.value, d.confidence_level_id, d.year, d.proxy_detail_id
                     FROM staged_collected_data d
                     JOIN regions r ON d.region_id = r.id
                     WHERE var_detail_id = (SELECT id FROM var_details WHERE var_name = '{var_name}');"""
