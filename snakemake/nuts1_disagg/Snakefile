@@ -36,7 +36,7 @@ def log_error(error, file_name):
 
 rule all:
     input:
-        f"output_logs/{db_name}/bad_proxy_log.json"
+        f"output_logs/bad_proxy_{db_name}.json"
 
 
 # Define a wildcard for each parameter
@@ -112,8 +112,8 @@ rule final:
         f"output_logs/{db_name}/finished_collected_vars_nuts0.log",
         f"output_logs/{db_name}/finished_eucalc_vars.log"
     output:
-        f"output_logs/{db_name}/bad_proxy_log.json"
+        f"output_logs/bad_proxy_{db_name}.json"
     run:
         # log bad proxies 
-        with open(f"output_logs/{db_name}/bad_proxy_log.json", 'w') as fp:
+        with open(f"output_logs/bad_proxy_{db_name}.json", 'w') as fp:
             json.dump(bad_proxy_dict, fp)

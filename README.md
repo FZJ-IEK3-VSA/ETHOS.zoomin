@@ -15,10 +15,8 @@ Installation steps
 
 0. Before you begin:
 
-Please make sure you have mamba installed in your base environment
-    ```bash
-    conda install mamba -c conda-forge
-    ```
+Please make sure you have miniforge installed on your machine
+
 Also create the initial database. Steps to create the Database will follow soon. 
 
 
@@ -30,7 +28,7 @@ Also create the initial database. Steps to create the Database will follow soon.
 2. Install dependencies and the repo in a clean conda environment:
     ```bash
     cd ETHOS.zoomin
-    mamba env create -n zoomin --file=requirements.yml
+    mamba env create --file=requirements.yml
     conda activate zoomin
     pip install -e .
     ```
