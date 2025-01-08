@@ -44,6 +44,7 @@ collected_vars_for_mini_db = [
     "agro_forestry_areas_cover",
     "number_of_cattle",
     "deaths",
+    "number_of_non_ferrous_metals_industries",
 ]
 
 eucalc_vars_for_mini_db = [
@@ -72,6 +73,8 @@ eucalc_vars_for_mini_db = [
     "eucalc_ccu_capex_depleted_oil_gas_reservoirs",
     "eucalc_ccu_capex_unmineable_coal_seams",
     "eucalc_elc_old_capacity_fossil_coal",
+    "eucalc_bld_emissions_co2_non_residential_hw_electricity",
+    "eucalc_ind_energy_demand_copper_electricity",
 ]
 
 climate_vars_for_mini_db = [

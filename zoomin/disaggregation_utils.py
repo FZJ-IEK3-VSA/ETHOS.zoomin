@@ -8,82 +8,24 @@ from zoomin.db_access import get_proxy_data
 char_dict = {"NUTS3": 5, "NUTS2": 4, "NUTS1": 3, "NUTS0": 2}
 
 
-def solve_dfs(df_1, df_2, operator):
-    # TODO: docstring
-    result = pd.merge(
-        df_1,
-        df_2,
-        on=["region_id", "region_code"],
-        how="inner",
-    )
-
-    result["value_x"].replace([np.inf, np.nan], 0, inplace=True)
-    result["value_y"].replace([np.inf, np.nan], 0, inplace=True)
-
-    if operator == "+":
-        result["value"] = result["value_x"] + result["value_y"]
-
-    elif operator == "/":
-        result["value"] = result["value_x"] / result["value_y"]
-
-        # NOTE: there are some 0s in the data that lead to NAs/infinity in the calculation due to divide by 0 problem
-        # for now these are set to 0
-        if (
-            result["value"].apply(lambda x: np.isinf(x)).any()
-            or result["value"].isna().any()
-        ):
-            warnings.warn("INFs/NAs present in calculated data. These are set to 0")
-            result["value"].replace([np.inf, np.nan], 0, inplace=True)
-
-    elif operator == "*":
-        result["value"] = result["value_x"].mul(result["value_y"])
-
-    else:
-        raise ValueError("Unknown operation")
-
-    # merged confidence_level_id and year (required for finaly quality rating evaluation
-    # NOTE: depends on the poorest quality rating and most old data. Hence min
-    result["confidence_level_id"] = result[
-        ["confidence_level_id_x", "confidence_level_id_y"]
-    ].min(axis=1)
-    result["year"] = result[["year_x", "year_y"]].min(axis=1)
-
-    result.drop(
-        columns=[
-            "value_x",
-            "value_y",
-            "confidence_level_id_x",
-            "confidence_level_id_y",
-            "year_x",
-            "year_y",
-        ],
-        inplace=True,
-    )
-
-    return result
-
-
 def solve_proxy_equation(equation: str, target_resolution):
     # TODO: doctrings
-    """
-    Currently covers the following cases:
-    1. single proxy: var_1
-    2. several proxies added without weighting: var_1 + var_2 + var_3 ...
-    3. 1 proxy divided by the other: var_1/var_2
-    4. several proxies added with weighting: 2*var_1 |+ 3*var_2 | .....
-    5. sum of proxies (or divide or multiply two proxies), divided by a proxy: var_1 + var_2 ... |/ var_n
-    6. multiply two proxies: var_1 * var_2
-    """
+
     # read in all the proxy data and normalise value column before performing arithmetic operations
-    pattern = r"[\+\*\|\-\/]"
+    operators = r"[\+\-\*\%\(\)\/\.\n]"
 
     # Splitting the string using the defined pattern
-    split_result = re.split(pattern, equation)
+    split_result = re.split(operators, equation)
 
     # Filtering out empty strings and digits
-    var_list = [item for item in split_result if item and not item.isdigit()]
+    var_list = [
+        part.strip()
+        for part in split_result
+        if part.strip() and not part.strip().isdigit()
+    ]
 
-    proxy_data_dict_normalized = {}
+    result = None
+
     for var_name in var_list:
         proxy_data = get_proxy_data(var_name, target_resolution)
 
@@ -95,62 +37,36 @@ def solve_proxy_equation(equation: str, target_resolution):
                 proxy_data["value"] / proxy_data["value"].max()
             )  # normalizing this way to retain true 0s in the normalized data
 
-        proxy_data_dict_normalized[var_name] = proxy_data
+        proxy_data.rename(columns={"value": var_name}, inplace=True)
 
-    def _calculate(_eq):
-        if "/" in _eq:
-            [var_1, var_2] = _eq.split("/")
-
-            var_1_df = proxy_data_dict_normalized[var_1]
-            var_2_df = proxy_data_dict_normalized[var_2]
-
-            result = solve_dfs(var_1_df, var_2_df, "/")
-
-        elif "+" in _eq:
-            proxy_vars = _eq.split("+")
-
-            for i, var_name in enumerate(proxy_vars):
-                var_data = proxy_data_dict_normalized[var_name]
-
-                if i == 0:
-                    result = var_data
-
-                else:
-                    result = solve_dfs(result, var_data, "+")
-
-        elif "*" in _eq:
-            [var_1, var_2] = _eq.split("*")
-
-            if var_1.isdigit():
-                result = proxy_data_dict_normalized[var_2]
-                result["value"] = result["value"] * float(var_1)
-
-            else:
-                var_1_df = proxy_data_dict_normalized[var_1]
-                var_2_df = proxy_data_dict_normalized[var_2]
-
-                result = solve_dfs(var_1_df, var_2_df, "*")
-
+        if result is None:
+            result = proxy_data
         else:
-            result = proxy_data_dict_normalized[_eq]
+            result = pd.merge(result, proxy_data, on=["region_code", "region_id"])
 
-        return result
+            # merged confidence_level_id and year
+            # NOTE: depends on the poorest quality rating and most old data. Hence min
+            result["confidence_level_id"] = result[
+                ["confidence_level_id_x", "confidence_level_id_y"]
+            ].min(axis=1)
+            result["year"] = result[["year_x", "year_y"]].min(axis=1)
 
-    eq_parts = equation.split("|")
+            result.drop(
+                columns=[
+                    "confidence_level_id_x",
+                    "confidence_level_id_y",
+                    "year_x",
+                    "year_y",
+                ],
+                inplace=True,
+            )
 
-    for i, eq_part in enumerate(eq_parts):
-        if i == 0:
-            result = _calculate(eq_part)
+    result = result.eval(f"value = {equation}")
+    result["value"] = result["value"].replace([np.inf, np.nan], 0)
 
-        else:
-            operator = eq_part[0]
-            _eq_part = eq_part[1:]
-
-            _result = _calculate(_eq_part)
-
-            result = solve_dfs(result, _result, operator)
-
-    result["value"] = result["value"].round(2)
+    result = result[
+        ["region_code", "region_id", "confidence_level_id", "year", "value"]
+    ].copy()
 
     return result
 

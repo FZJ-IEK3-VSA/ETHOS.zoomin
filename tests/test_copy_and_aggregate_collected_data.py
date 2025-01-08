@@ -6,7 +6,7 @@ import numpy as np
 def test_nuts0_data_copy():
     agg_value = get_values(
         f"""SELECT value FROM processed_data 
-        WHERE var_detail_id = (SELECT id FROM var_details WHERE var_name = 'number_of_people_with_access_to_electricity');"""
+        WHERE var_detail_id = (SELECT id FROM var_details WHERE var_name = 'percentage_of_people_with_access_to_electricity');"""
     )
 
     assert isinstance(agg_value, float)

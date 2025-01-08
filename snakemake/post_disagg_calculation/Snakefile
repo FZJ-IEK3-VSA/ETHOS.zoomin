@@ -27,7 +27,7 @@ def log_error(error, file_name):
 
 rule all:
     input:
-        f"output_logs/{db_name}/finished.log"
+        f"output_logs/finished_{db_name}.log"
 
 post_disagg_calc_vars = sm_utls.get_post_disagg_calc_vars() 
 
@@ -60,4 +60,4 @@ rule final:
                 db_name=db_name,
                 var_name=post_disagg_calc_vars)
     output:
-        touch("output_logs/{wc_db_name}/finished.log")
+        touch("output_logs/finished_{wc_db_name}.log")
