@@ -8,11 +8,19 @@ from zoomin.db_access import get_proxy_data
 char_dict = {"NUTS3": 5, "NUTS2": 4, "NUTS1": 3, "NUTS0": 2}
 
 
+def is_float(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
 def solve_proxy_equation(equation: str, target_resolution):
     # TODO: doctrings
 
     # read in all the proxy data and normalise value column before performing arithmetic operations
-    operators = r"[\+\-\*\%\(\)\/\.\n]"
+    operators = r"[\+\-\*\%\(\)\/\n]"
 
     # Splitting the string using the defined pattern
     split_result = re.split(operators, equation)
@@ -21,7 +29,7 @@ def solve_proxy_equation(equation: str, target_resolution):
     var_list = [
         part.strip()
         for part in split_result
-        if part.strip() and not part.strip().isdigit()
+        if part.strip() and not part.strip().isdigit() and not is_float(part.strip())
     ]
 
     result = None
