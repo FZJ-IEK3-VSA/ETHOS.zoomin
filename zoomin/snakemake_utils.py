@@ -45,6 +45,7 @@ collected_vars_for_mini_db = [
     "number_of_cattle",
     "deaths",
     "number_of_non_ferrous_metals_industries",
+    "number_of_chemical_industries",
 ]
 
 eucalc_vars_for_mini_db = [
@@ -75,6 +76,7 @@ eucalc_vars_for_mini_db = [
     "eucalc_elc_old_capacity_fossil_coal",
     "eucalc_bld_emissions_co2_non_residential_hw_electricity",
     "eucalc_ind_energy_demand_copper_electricity",
+    "eucalc_ind_energy_demand_chemicals_liquid_ff_oil",
 ]
 
 climate_vars_for_mini_db = [
