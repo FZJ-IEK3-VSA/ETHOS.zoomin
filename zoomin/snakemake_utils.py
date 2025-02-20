@@ -9,7 +9,11 @@ dotenv_path = find_dotenv()
 load_dotenv(dotenv_path)
 
 mini_db = int(os.environ.get("MINI_DB"))
-db_name = os.environ.get("DB_NAME")
+
+db_country = os.environ.get("DB_COUNTRY")
+db_version = os.environ.get("DB_VERSION")
+
+db_name = f"{db_country.lower()}_v{db_version}"
 
 collected_vars_for_mini_db = [
     "relative_gross_value_added_nace_sector_a",
@@ -82,6 +86,7 @@ eucalc_vars_for_mini_db = [
 climate_vars_for_mini_db = [
     "cproj_annual_mean_temperature_cooling_degree_days",
     "cimp_historical_probability_of_very_high_fire_risk_mean",
+    "cimp_ts_heavy_precipitation_intensity_mean",
 ]
 
 

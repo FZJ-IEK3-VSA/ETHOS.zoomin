@@ -15,7 +15,10 @@ dotenv_path = find_dotenv()
 # load up the entries as environment variables
 load_dotenv(dotenv_path)
 
-db_name = os.environ.get("DB_NAME")
+db_country = os.environ.get("DB_COUNTRY")
+db_version = os.environ.get("DB_VERSION")
+
+db_name = f"{db_country.lower()}_v{db_version}"
 db_user = os.environ.get("DB_USER")
 db_pwd = os.environ.get("DB_PASSWORD")
 db_host = os.environ.get("DB_HOST")

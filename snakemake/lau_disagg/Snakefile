@@ -11,7 +11,10 @@ dotenv_path = find_dotenv()
 # load up the entries as environment variables
 load_dotenv(dotenv_path)
 
-db_name = os.environ.get("DB_NAME")
+db_country = os.environ.get("DB_COUNTRY")
+db_version = os.environ.get("DB_VERSION")
+
+db_name = f"{db_country.lower()}_v{db_version}"
 
 bad_proxy_dict = {}
 
