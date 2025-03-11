@@ -87,15 +87,39 @@ climate_vars_for_mini_db = [
     "cproj_annual_mean_temperature_cooling_degree_days",
     "cimp_historical_probability_of_very_high_fire_risk_mean",
     "cimp_ts_heavy_precipitation_intensity_mean",
+    "cimp_mortality_fraction_attributable_to_heatwaves",
+    "cimp_ts_impact_of_heatwaves_on_crop",
 ]
 
 
 def get_climate_vars():
 
     if mini_db == 1:
-        years = ["2020", "2099"]
+        cimp_ts_years = ["2025", "2099"]
+        cproj_years = ["2025", "2099"]
     else:
-        years = [str(i) for i in range(2020, 2100)]
+        cimp_ts_years = [
+            "2025",
+            "2030",
+            "2035",
+            "2040",
+            "2045",
+            "2050",
+            "2075",
+            "2099",
+            "2100",
+        ]
+        cproj_years = [
+            "2020",
+            "2025",
+            "2030",
+            "2035",
+            "2040",
+            "2045",
+            "2050",
+            "2075",
+            "2099",
+        ]
 
     if mini_db == 1:
         var_list = climate_vars_for_mini_db
@@ -109,12 +133,14 @@ def get_climate_vars():
 
     return_list = []
     for var_name in var_list:
-        for year in years:
-            if "cproj_" in var_name:
-                for year in years:
-                    return_list.append(f"{var_name}-{year}")
-            else:
-                return_list.append(var_name)
+        if "cproj_" in var_name:
+            for year in cproj_years:
+                return_list.append(f"{var_name}-{year}")
+        elif "cimp_ts" in var_name:
+            for year in cimp_ts_years:
+                return_list.append(f"{var_name}-{year}")
+        else:
+            return_list.append(var_name)
 
     return return_list
 
