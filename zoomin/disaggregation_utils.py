@@ -69,6 +69,8 @@ def solve_proxy_equation(equation: str, target_resolution):
                 inplace=True,
             )
 
+    equation = equation.replace("\n", " ")
+
     result = result.eval(f"value = {equation}")
     result["value"] = result["value"].replace([np.inf, np.nan], 0)
 
