@@ -95,7 +95,7 @@ climate_vars_for_mini_db = [
 def get_climate_vars():
 
     if mini_db == 1:
-        cimp_ts_years = ["2025", "2099"]
+        cimp_ts_years = ["2025", "2100"]
         cproj_years = ["2025", "2099"]
     else:
         cimp_ts_years = [
@@ -106,7 +106,6 @@ def get_climate_vars():
             "2045",
             "2050",
             "2075",
-            "2099",
             "2100",
         ]
         cproj_years = [
