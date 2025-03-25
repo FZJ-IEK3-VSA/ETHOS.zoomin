@@ -6,7 +6,7 @@ from zoomin import disaggregation as disagg
 def disaggregate_climate_var(climate_var_detail) -> None:
     """Disaggregate to the specified spatial resolution and add to the database."""  # TODO: docstring
     # get data
-    if "cproj_" in climate_var_detail:
+    if ("cproj_" in climate_var_detail) or ("cimp_ts" in climate_var_detail):
         [var_name, data_year] = climate_var_detail.split("-")
 
         data_year = int(data_year)
