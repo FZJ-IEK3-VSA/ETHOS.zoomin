@@ -63,12 +63,6 @@ rule disaggregate_nuts0_collected_vars:
             if bad_proxy is not None:
                 bad_proxy_dict.update({wildcards.wc_collected_var_nuts0: bad_proxy})
 
-        except (MemoryError, np.core._exceptions._ArrayMemoryError) as e:
-            sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_nuts0, 
-                                                    target_resolution='NUTS2')
-            log_error(traceback.format_exc(), wildcards.wc_collected_var_nuts0)
-            raise e
-
         except Exception as e:
             sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_nuts0, 
                                                     target_resolution='NUTS2')
@@ -96,14 +90,6 @@ rule disaggregate_eucalc_vars:
 
             if bad_proxy is not None:
                 bad_proxy_dict.update({f"{wildcards.wc_eucalc_var}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway}": bad_proxy})
-
-        except (MemoryError, np.core._exceptions._ArrayMemoryError) as e:
-            sm_utls.clear_rows_from_processed_data(wildcards.wc_eucalc_var, 
-                                                "NUTS2", 
-                                                wildcards.wc_eucalc_year, 
-                                                wildcards.wc_pathway)
-            log_error(traceback.format_exc(), f"{wildcards.wc_eucalc_var}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway}")
-            raise e
 
         except Exception as e:
             sm_utls.clear_rows_from_processed_data(wildcards.wc_eucalc_var, 
