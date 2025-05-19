@@ -193,7 +193,7 @@ def get_proxy_data(cursor: Any, var_name: str, spatial_resolution) -> pd.DataFra
                             FROM processed_data d
                             JOIN regions r ON d.region_id = r.id
                             WHERE d.var_detail_id = (SELECT id FROM var_details WHERE var_name = '{var_name}') AND 
-                                d.year=2020 AND 
+                                d.year=2025 AND 
                                 d.climate_experiment='RCP4.5' AND 
                                 d.region_id IN (SELECT id FROM regions WHERE resolution = '{spatial_resolution}');"""
         else:
