@@ -1,6 +1,7 @@
 import os
 import traceback
 import json
+import numpy as np
 from zoomin import disaggregation_manager as disagg_manager
 from zoomin import snakemake_utils as sm_utls
 from dotenv import load_dotenv, find_dotenv
@@ -65,6 +66,12 @@ rule disaggregate_nuts2_collected_vars:
             if bad_proxy is not None:
                 bad_proxy_dict.update({wildcards.wc_collected_var_nuts2: bad_proxy})
 
+        except (MemoryError, np.core._exceptions._ArrayMemoryError) as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_nuts2, 
+                                                    target_resolution='NUTS3')
+            log_error(traceback.format_exc(), wildcards.wc_collected_var_nuts2)
+            raise e
+
         except Exception as e:
             sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_nuts2, 
                                                     target_resolution='NUTS3')
@@ -95,6 +102,11 @@ rule disaggregate_nuts0_collected_vars:
             if bad_proxy is not None:
                 bad_proxy_dict.update({wildcards.wc_collected_var_nuts0: bad_proxy})
 
+        except (MemoryError, np.core._exceptions._ArrayMemoryError) as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_nuts0, target_resolution='NUTS3')
+            log_error(traceback.format_exc(), wildcards.wc_collected_var_nuts0)
+            raise e
+
         except Exception as e:
             sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_nuts0, target_resolution='NUTS3')
             log_error(traceback.format_exc(), wildcards.wc_collected_var_nuts0)
@@ -124,6 +136,14 @@ rule disaggregate_eucalc_vars:
 
             if bad_proxy is not None:
                 bad_proxy_dict.update({f"{wildcards.wc_eucalc_var}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway}": bad_proxy})
+
+        except (MemoryError, np.core._exceptions._ArrayMemoryError) as e:
+            sm_utls.clear_rows_from_processed_data(wildcards.wc_eucalc_var, 
+                                                    "NUTS3", 
+                                                    wildcards.wc_eucalc_year, 
+                                                    wildcards.wc_pathway)
+            log_error(traceback.format_exc(), f"{wildcards.wc_eucalc_var}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway}")
+            raise e
 
         except Exception as e:
             sm_utls.clear_rows_from_processed_data(wildcards.wc_eucalc_var, 

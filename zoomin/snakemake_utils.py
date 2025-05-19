@@ -52,6 +52,18 @@ collected_vars_for_mini_db = [
     "number_of_chemical_industries",
     "gross_value_added_nace_sector_c",
     "generation_capacity_of_waste_plants",
+    "employment_in_agriculture_forestry_and_fishing_nuts2",
+    "employment_in_nace_sector_b_e",
+    "employment_in_manufacturing",
+    "employment_in_construction",
+    "employment_in_nace_sector_g_i",
+    "employment_in_nace_sector_j",
+    "employment_in_nace_sector_k",
+    "employment_in_nace_sector_l",
+    "employment_in_nace_sector_m_n",
+    "employment_in_nace_sector_o_q",
+    "employment_in_nace_sector_r_u",
+    "final_energy_consumption_in_commerce",
 ]
 
 eucalc_vars_for_mini_db = [
