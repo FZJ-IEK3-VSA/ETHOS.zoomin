@@ -64,6 +64,7 @@ collected_vars_for_mini_db = [
     "employment_in_nace_sector_o_q",
     "employment_in_nace_sector_r_u",
     "final_energy_consumption_in_commerce",
+    "employment_in_agriculture_forestry_and_fishing",
 ]
 
 eucalc_vars_for_mini_db = [
