@@ -50,6 +50,8 @@ collected_vars_for_mini_db = [
     "deaths",
     "number_of_non_ferrous_metals_industries",
     "number_of_chemical_industries",
+    "gross_value_added_nace_sector_c",
+    "generation_capacity_of_waste_plants",
 ]
 
 eucalc_vars_for_mini_db = [
@@ -81,6 +83,11 @@ eucalc_vars_for_mini_db = [
     "eucalc_bld_emissions_co2_non_residential_hw_electricity",
     "eucalc_ind_energy_demand_copper_electricity",
     "eucalc_ind_energy_demand_chemicals_liquid_ff_oil",
+    "eucalc_dhg_energy_demand_added_district_heat_solid_ff_coal",
+    "eucalc_dhg_emissions_co2_heat_co_product_from_industry",
+    "eucalc_lus_emissions_co2e_other_rem_other",
+    "eucalc_agr_bioenergy_capacity_liquid_biogasoline_fer",
+    "eucalc_bld_emissions_co2_heat_non_residential_electricity",
 ]
 
 climate_vars_for_mini_db = [
