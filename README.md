@@ -39,3 +39,6 @@ Also create the initial database. Steps to create the Database will follow soon.
     ```
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
+
+## Acknowledgement
+This work was developed as part of the project [LOCALISED](https://www.localised-project.eu/) —Localised decarbonization pathways for citizens, local administrations and businesses to inform for mitigation and adaptation action. This project received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No. 101036458. This work was also supported by the Helmholtz Association as part of the program “Energy System Design”. 
