@@ -42,5 +42,5 @@ for spatial_level in ["NUTS2", "NUTS3", "LAU"]:
     for pathway in pathways:
         for year in eucalc_years:
             bad_proxy = disagg_manager.disaggregate_eucalc_var(
-                var_name, pathway, year, "LAU"
+                var_name, pathway, year, spatial_level
             )
