@@ -1,3 +1,4 @@
+"""Contains functions used during execution of snakemake workflows."""
 import os
 from dotenv import find_dotenv, load_dotenv
 from zoomin import db_access
@@ -15,6 +16,8 @@ db_version = os.environ.get("DB_VERSION")
 
 db_name = f"{db_country.lower()}_v{db_version}"
 
+# variables that are spatially disaggregated if MINI_DB=1,
+# if its 0, all variables present in "variables_with_details_and_tags.xlsx" are processed.
 collected_vars_for_mini_db = [
     "relative_gross_value_added_nace_sector_a",
     "road_transport_of_freight",
@@ -113,7 +116,11 @@ climate_vars_for_mini_db = [
 
 
 def get_climate_vars():
+    """Return a list of climate projections and climate impact variables.
+    If MINI_DB=1, return a subset of variables.
 
+    :returns: return_list
+    :rtype: list"""
     if mini_db == 1:
         cimp_ts_years = ["2025", "2100"]
         cproj_years = ["2025", "2099"]
@@ -150,6 +157,10 @@ def get_climate_vars():
 
         var_list = db_access.get_values(sql_cmd)
 
+    # a return list is prepared by appending year to var_name -
+    # required to run the disaggregation for each combination.
+    # NOTE: running it all at once caused memory issues when reading
+    # and writing the data to the database.
     return_list = []
     for var_name in var_list:
         if "cproj_" in var_name:
@@ -165,8 +176,16 @@ def get_climate_vars():
 
 
 def get_collected_vars(spatial_level):
-    """spatial_level: could be LAU, NUTS3, NUTS2, or NUTS0"""
+    """
+    Return collected variables whose data is to be spatially disaggregated.
 
+    :param spatial_level: Different variable data is collected at different spatial resolution.
+        Here, only the variables collected at the specified spatial_level are returned.
+    :type spatial_level: str, one of {"NUTS0", "NUTS1", "NUTS2", "NUTS3", "LAU"}
+
+    :returns: return_list
+    :rtype: list
+    """
     sql_cmd = f"""SELECT var_name FROM var_details 
                 WHERE 
                     (var_name NOT LIKE 'eucalc_%%' AND 
@@ -186,6 +205,12 @@ def get_collected_vars(spatial_level):
 
 
 def get_eucalc_vars():
+    """
+    Return eucalc variables whose data is to be spatially disaggregated.
+
+    :returns: return_list
+    :rtype: list
+    """
     sql_cmd = f"""SELECT var_name FROM var_details 
                 WHERE 
                 var_name LIKE 'eucalc_%%' 
@@ -200,7 +225,12 @@ def get_eucalc_vars():
 
 
 def get_post_disagg_calc_vars():
+    """
+    Return variables which required a post-disaggregation calculation.
 
+    :returns: return_list
+    :rtype: list
+    """
     sql_cmd = f"""SELECT var_name FROM var_details 
                 WHERE post_disagg_calculation_eq IS NOT NULL;"""
 
@@ -220,6 +250,35 @@ def get_post_disagg_calc_vars():
 def clear_rows_from_processed_data(
     cursor, var_name, target_resolution=None, year=None, pathway=None
 ):
+    """
+    Clear specified rows from `processed_data` table, in the database.
+    Used in the snakemake workflow to undo any data entry, if the rule fails mid-data entry.
+
+    :param var_name: Name of the variable whose data needs to be erased
+    :type var_name: str
+
+    **Default arguments:**
+
+    :param target_resolution: Specify target resolution, if the data is to be erased only
+        at a particular spatial resolution
+
+        |br| * the default value is None
+
+    :type target_resolution: str, one of {"NUTS0", "NUTS1", "NUTS2", "NUTS3", "LAU"}
+
+    :param year: Specify year, if the data is to be erased only for a particular year.
+        Useful for EUCalc and climate data
+
+        |br| * the default value is None
+
+    :type year: int
+
+    :param pathway: Specify EUCalc pathway, if the data is to be erased only for a particular pathway.
+
+        |br| * the default value is None
+
+    :type pathway: str, one of {"national", "with_behavioural_changes"}
+    """
     if "cproj_" in var_name:
         [var_name, year] = var_name.split("-")
 

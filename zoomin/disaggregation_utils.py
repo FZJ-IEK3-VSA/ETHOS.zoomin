@@ -9,6 +9,15 @@ char_dict = {"NUTS3": 5, "NUTS2": 4, "NUTS1": 3, "NUTS0": 2}
 
 
 def is_float(s):
+    """
+    check if the passed value is float.
+
+    :param s: The value.
+    :type s: Any
+
+    :returns: A bool value
+    :rtype: bool
+    """
     try:
         float(s)
         return True
@@ -16,9 +25,21 @@ def is_float(s):
         return False
 
 
-def solve_proxy_equation(equation: str, target_resolution):
-    # TODO: doctrings
+def solve_proxy_equation(equation: str, target_resolution: str):
+    """
+    If the proxy is an equation, e.g. population+gross_value_added, then the
+    datasets are queried and the values are calculated per region to return
+    final spatial proxy.
 
+    :param equation: The proxy equation.
+    :type equation: str
+
+    :param target_resolution: The resolution at which the proxy data is to be calculated.
+    :type target_resolution: str, one of {"NUTS0", "NUTS1", "NUTS2", "NUTS3", "LAU"}
+
+    :returns: result
+    :rtype: pd.DataFrame
+    """
     # read in all the proxy data and normalise value column before performing arithmetic operations
     operators = r"[\+\-\*\%\(\)\/\n]"
 
@@ -106,8 +127,22 @@ def match_source_target_resolutions(
 def apply_binary_disaggregation_criteria(
     proxy_data, binary_disaggregation_criteria, target_resolution
 ):
-    # TODO: docstring
-    """set the values in the value column of proxy_data to 0 for those region_ids where the corresponding value in the result dataframe is less than the threshold."""
+    """
+    Apply the passed binary criteria to the proxy dataset - set the proxy values
+    to 0, where the criteria does not hold.
+
+    :param proxy_data: The proxy dataset
+    :type proxy_data: pd.DataFrame
+
+    :param binary_disaggregation_criteria: The binary disaggregation criteria. e.g. "population>500"
+    :type binary_disaggregation_criteria: str
+
+    :param target_resolution: The spatial resolution of the proxy data.
+    :type target_resolution: str, one of {"NUTS0", "NUTS1", "NUTS2", "NUTS3", "LAU"}
+
+    :returns: out_proxy_data
+    :rtype: pd.DataFrame
+    """
     out_proxy_data = proxy_data.copy()
 
     [equation, threshold] = binary_disaggregation_criteria.split(
@@ -131,10 +166,19 @@ def apply_binary_disaggregation_criteria(
     return out_proxy_data
 
 
-def disaggregate_value(
-    target_value, proxy_data
-):  # TODO: add a feature that disaggregates int value resulting in int values again
-    # TODO: docstring
+def disaggregate_value(target_value, proxy_data):
+    """
+    Spatially disaggregate a value to its child/target regions.
+
+    :param target_value: The value to be disaggregated.
+    :type target_value: int/float
+
+    :param proxy_data: The spatial proxy to be used.
+    :type proxy_data: pd.DataFrame
+
+    :returns: disagg_data
+    :rtype: pd.DataFrame
+    """
     disagg_data = proxy_data.copy(deep=True)
 
     total = disagg_data["value"].values.sum()
@@ -165,23 +209,27 @@ def disaggregate_value(
             columns={"disagg_value": "value"}
         )
 
-        is_bad_proxy = False
+        is_bad_proxy = False  # TODO: remove this
 
     return disagg_data, is_bad_proxy
 
 
 def disaggregate_data(target_data, proxy_data, proxy_confidence_level):
-    """#TODO: update docstring
+    """
     Spatially disaggregate the passed `target_data` to a target resolution.
     Use `proxy_data` to obtain shares in each target region.
 
     :param target_data: The data to be disaggregated
-    :type target_data: int/float
+    :type target_data: pd.DataFrame
 
     :param proxy_data: Data containing values in each target region
     :type proxy_data: pd.DataFrame
 
-    :returns: disagg_data, is_bad_proxy #TODO: check how to write doc string with two return values
+    :param proxy_confidence_level: The confidence in the spatial proxy used.
+    :type proxy_confidence_level: int
+
+    :returns: disagg_data
+    :rtype: pd.DataFrame
     """
     # disaggregate value in each source region to the corresponding target regions
     disagg_df_list = []

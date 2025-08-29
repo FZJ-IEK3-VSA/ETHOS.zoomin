@@ -4,7 +4,23 @@ from zoomin import disaggregation as disagg
 
 ############## Climate data ##################
 def disaggregate_climate_var(climate_var_detail) -> None:
-    """Disaggregate to the specified spatial resolution and add to the database."""  # TODO: docstring
+    """
+    Spatially disaggregate the passed climate data, for a particular year and dump
+    it into `processed_data` table in the database.
+
+    :param climate_var_detail: The climate variable appended with a year.
+        e.g.: "cproj_annual_mean_minimum_temperature-2030"
+    :type climate_var_detail: str
+
+    :param proxy_data: Data containing values in each target region
+    :type proxy_data: pd.DataFrame
+
+    :param proxy_confidence_level: The confidence in the spatial proxy used.
+    :type proxy_confidence_level: int
+
+    :returns: disagg_data
+    :rtype: pd.DataFrame
+    """
     # get data
     if ("cproj_" in climate_var_detail) or ("cimp_ts" in climate_var_detail):
         [var_name, data_year] = climate_var_detail.split("-")
@@ -34,7 +50,7 @@ def disaggregate_climate_var(climate_var_detail) -> None:
 
     # Disaggregate
     # NOTE: all climate data is disaggregated the same way - same value all regions
-    disagg.distribute_data_equally(
+    disagg.allocate_same_value_to_all_child_regions(
         var_data,
         source_resolution,
         target_resolution,
@@ -44,8 +60,19 @@ def disaggregate_climate_var(climate_var_detail) -> None:
 
 ############## Collected data ##################
 def disaggregate_collected_var(var_name, source_resolution, target_resolution) -> None:
-    """Disaggregate to the specified spatial resolution and add to the database."""  # TODO: docstring
+    """
+    Spatially disaggregate the passed collected variable data and dump
+    it into `processed_data` table in the database.
 
+    :param var_name: Name of the collected data variable.
+    :type var_name: str
+
+    :param source_resolution: The spatial resolution of the collected dataset.
+    :type source_resolution: str, one of {"NUTS0", "NUTS1", "NUTS2", "NUTS3"}
+
+    :param target_resolution: The spatial resolution to which the collected dataset is to be disaggregated.
+    :type target_resolution: str, one of {"NUTS1", "NUTS2", "NUTS3", "LAU"}
+    """
     # get data
     sql_cmd = f"""SELECT r.region_code, d.var_detail_id, d.value, d.confidence_level_id, d.year, d.proxy_detail_id
                     FROM staged_collected_data d
@@ -71,7 +98,7 @@ def disaggregate_collected_var(var_name, source_resolution, target_resolution) -
     if isinstance(disagg_proxy, str):
         if disagg_proxy == "no proxy, same value all regions":
 
-            disagg.distribute_data_equally(
+            disagg.allocate_same_value_to_all_child_regions(
                 var_data, source_resolution, target_resolution, proxy_confidence_level
             )
 
@@ -99,8 +126,22 @@ def disaggregate_collected_var(var_name, source_resolution, target_resolution) -
 
 ############## EUCalc data ##################
 def disaggregate_eucalc_var(var_name, pathway, year, target_resolution) -> None:
-    """Disaggregate to the specified spatial resolution and add to the database."""  # TODO: docstring
+    """
+    Spatially disaggregate the passed EUCalc variable data and dump it
+    into `processed_data` table in the database.
 
+    :param var_name: Name of the EUCalc data variable.
+    :type var_name: str
+
+    :param pathway: EUCalc pathway.
+    :type pathway: str, one of {"national", "with_behavioural_changes"}
+
+    :param year: EUCalc variable year.
+    :type year: int
+
+    :param target_resolution: The spatial resolution to which the EUCalc dataset is to be disaggregated.
+    :type target_resolution: str, one of {"NUTS1", "NUTS2", "NUTS3", "LAU"}
+    """
     # get data
     sql_cmd = f"""SELECT r.region_code, d.var_detail_id, d.pathway, d.value, d.confidence_level_id, d.year, d.proxy_detail_id
                     FROM staged_eucalc_data d
@@ -127,7 +168,7 @@ def disaggregate_eucalc_var(var_name, pathway, year, target_resolution) -> None:
     ## disaggregate
     if isinstance(disagg_proxy, str):
         if disagg_proxy == "no proxy, same value all regions":
-            disagg.distribute_data_equally(
+            disagg.allocate_same_value_to_all_child_regions(
                 var_data,
                 "NUTS0",
                 target_resolution,

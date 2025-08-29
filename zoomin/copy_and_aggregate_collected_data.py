@@ -2,11 +2,10 @@
 from zoomin.db_access import with_db_connection
 from zoomin import db_access
 
-# NUTS0 -------------------
-# only copying, no aggregation to higher levels
+# COPY
 @with_db_connection()
 def copy_collected_data_into_processed_data(cursor):
-
+    """Create a copy of staged collected data in `processed_data` table"""
     sql_cmd = f"""INSERT INTO processed_data (
                     region_id,
                     var_detail_id,
@@ -30,13 +29,26 @@ def copy_collected_data_into_processed_data(cursor):
 
 copy_collected_data_into_processed_data()
 
-# ---------------------------------
+# AGGREGATION
+
 # number of chars to consider based on a resolution
 char_dict = {"NUTS3": 5, "NUTS2": 4, "NUTS1": 3, "NUTS0": 2}
 
 
+@with_db_connection()
 def aggregate_collected_var(cursor, var_detail_id, agg_mode, spatial_resolution):
+    """Aggregate staged data of a single variable, to different upper spatial levels and dump
+    it into the `processed_data` table in the database.
 
+    :param var_detail_id: The primary key corresponding to a variable
+    :type var_detail_id: int
+
+    :param agg_mode: The type of aggregation to perform.
+    :type agg_mode: str, one of {"AVG", "MAX", "SUM"}
+
+    :param spatial_resolution: The spatial level at which the variable data is collected.
+    :type spatial_resolution: str, one of {"NUTS1", "NUTS2", "NUTS3", "LAU"}
+    """
     if spatial_resolution == "NUTS2":
         agg_spatial_levels = ["NUTS1", "NUTS0"]
 
@@ -78,6 +90,8 @@ def aggregate_collected_var(cursor, var_detail_id, agg_mode, spatial_resolution)
 
 @with_db_connection()
 def aggregate_collected_data(cursor):
+    """Aggregate staged collected data to different upper spatial levels and dump
+    it into the `processed_data` table in the database."""
     for spatial_resolution in ["NUTS2", "NUTS3", "LAU"]:
         original_resolution_id = db_access.get_primary_key(
             "original_resolutions", {"original_resolution": spatial_resolution}
@@ -93,7 +107,7 @@ def aggregate_collected_data(cursor):
 
         var_details = db_access.get_table(sql_cmd)
 
-        for idx, row in var_details.iterrows():
+        for _, row in var_details.iterrows():
             var_detail_id = row["id"]
             var_aggregation_method = row["var_aggregation_method"]
 

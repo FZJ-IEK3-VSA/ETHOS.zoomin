@@ -1,9 +1,10 @@
 """Creates a copy of staged climate data in processed_data table and aggregates the data to higher spatial levels"""
 from zoomin.db_access import with_db_connection
 
-
+# COPY
 @with_db_connection()
 def copy_climate_data_into_processed_data(cursor):
+    """Copy climate data from `staged_climate_data` table into `processed_data` table in a database."""
     sql_cmd = """INSERT INTO processed_data (
                     region_id,
                     var_detail_id,
@@ -28,12 +29,21 @@ def copy_climate_data_into_processed_data(cursor):
 
 copy_climate_data_into_processed_data()
 
+# AGGREGATION
 # number of chars to consider based on a resolution
 char_dict = {"NUTS3": 5, "NUTS2": 4, "NUTS1": 3, "NUTS0": 2}
 
 
 def aggregate_climate_data(cursor, data_type, agg_spatial_level):
+    """Aggregate staged climate data, to different upper spatial levels and dump
+    it into the `processed_data` table in the database.
 
+    :param data_type: Either climate projection data or climate impact data.
+    :type data_type: str, one of {"climate_projection", "climate_impact"}
+
+    :param agg_spatial_level: The spatial level to aggregate to
+    :type agg_spatial_level: str, one of {"NUTS0", "NUTS1", "NUTS2"}
+    """
     if data_type == "climate_projection":
         var_start = "cproj"
         agg_mode = "AVG"
@@ -74,6 +84,8 @@ def aggregate_climate_data(cursor, data_type, agg_spatial_level):
 
 @with_db_connection()
 def aggregate_all_levels(cursor):
+    """Aggregate staged climate data, to different upper spatial levels and dump
+    it into the `processed_data` table in the database."""
     for data_type in ["climate_projection", "climate_impact"]:
         for agg_spatial_level in ["NUTS0", "NUTS1", "NUTS2"]:
             aggregate_climate_data(cursor, data_type, agg_spatial_level)
