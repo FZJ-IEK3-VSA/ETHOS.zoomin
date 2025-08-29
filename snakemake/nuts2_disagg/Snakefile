@@ -27,7 +27,11 @@ if mini_db == 1:
 else:
     eucalc_years = ["2020", "2025", "2030", "2035", "2040", "2045", "2050"]
 
-pathways = ["national", "with_behavioural_changes"]
+if mini_db == 1:
+    pathways = ["national"]
+else:
+    pathways = ["national", "with_behavioural_changes"]
+    
 eucalc_vars = sm_utls.get_eucalc_vars()
 
 def log_error(error, file_name):
