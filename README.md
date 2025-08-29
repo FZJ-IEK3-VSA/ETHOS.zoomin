@@ -71,7 +71,7 @@ You need to create your own `.env` file on your local machine, within the ETHOS.
 ENV_NAME=zoomin #name of the environment. The default env_name in this case is "zoomin". Checkout "requirements.yml" for more info.
 
 DB_COUNTRY=IT # The country you wish to work with 
-DB_VERSION=5 # The database version you wish to work with 
+DB_VERSION=6 # The database version you wish to work with 
 
 DB_ENGINE=django.db.backends.postgresql # indicate for Django that postgres databases are used in thr project
 DB_USER=postgres # database username, default is always "postgres"
@@ -79,10 +79,13 @@ DB_PASSWORD=So%e_pwd # database password, the one you entered when installing po
 DB_HOST=127.0.0.1 # in develop mode, only localhost (127.0.0.1) would be allowed hosts
 DB_PORT=5432 # this is the default port of postgres 
 
-MINI_DB=1 # Disaggregating the whole data takes a lot of time. Therefore, during development, it is limited to a small sub-set of data, by setting MINI_DB to 1. See `zoomin/snakemake_utils.py` for more info. 
+MINI_DB=1 # Disaggregating the whole data takes a lot of time. 
+        # Therefore, during development, it is limited to a small sub-set of data, by setting MINI_DB to 1. 
+        # If MINI_DB is 1, fewer variables are disaggregated (See `zoomin/snakemake_utils.py` for more info) 
+        # And only EUCalc national pathway and years 2020 and 2030 are considere (See snakefiles for more info)
 ```
 
-## Snakemake worflow 
+## Snakemake workflow 
 Each stage described above is run using snakemake. See `snakemake` folder for more details. To run all the snakemake workflows i.e., all the stages, run `run_mini_deployment.sh` bash script. **NOTE:** Some sub-stages of the spatial disaggregation might be 
 commented out, please uncomment them if you wish to run the stages. 
 
