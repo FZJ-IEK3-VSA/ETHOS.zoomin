@@ -1,5 +1,5 @@
+"""Script used when something needs to be updated in a database, after it is deployed."""
 from zoomin.db_access import with_db_connection
-from zoomin import db_access
 from zoomin import disaggregation_manager as disagg_manager
 
 var_name = "eucalc_ind_material_production_chemicals"
@@ -42,5 +42,5 @@ for spatial_level in ["NUTS2", "NUTS3", "LAU"]:
     for pathway in pathways:
         for year in eucalc_years:
             bad_proxy = disagg_manager.disaggregate_eucalc_var(
-                var_name, pathway, year, "LAU"
+                var_name, pathway, year, spatial_level
             )

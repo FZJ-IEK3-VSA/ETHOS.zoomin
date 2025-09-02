@@ -75,12 +75,22 @@ def with_db_connection() -> Any:
 
 
 def get_db_uri() -> str:
-    """Return db uri."""
-    return f"postgresql://{db_user}:{db_pwd}@{db_host}:{db_port}/{db_name}"
+    """
+    Return Database URI.
+
+    :returns: db_uri
+    :rtype: str
+    """
+    db_uri = f"postgresql://{db_user}:{db_pwd}@{db_host}:{db_port}/{db_name}"
+    return db_uri
 
 
 def get_db_engine() -> Any:
-    """Set up database connection engine."""
+    """Set up database connection engine and return engine.
+
+    :returns: engine
+    :rtype: sqlalchemy.Engine
+    """
     db_uri = get_db_uri()
     engine = create_engine(db_uri, pool_pre_ping=True)
 
@@ -89,21 +99,34 @@ def get_db_engine() -> Any:
 
 @with_db_connection()
 def get_values(cursor, sql_cmd):
+    """
+    Execute the passed SQL command and return the result.
+
+    :param sql_cmd: SQL command
+    :type sql_cmd: str
+
+    :returns: db_output
+    :rtype: str/float/int/list
+    """
     cursor.execute(sql_cmd)
     result = cursor.fetchall()
 
-    result_list = [res[0] for res in result]
+    db_output = [res[0] for res in result]
 
-    if len(result_list) == 1:
-        return result_list[0]
+    if len(db_output) == 1:
+        return db_output[0]
     else:
-        return result_list
+        return db_output
 
 
 @with_db_connection()
-def execute_sql_cmd(cursor: Any, sql_cmd) -> Any:
-    """Execute any sql_cmd passed"""
+def execute_sql_cmd(cursor: Any, sql_cmd: str):
+    """
+    Execute the passed SQL command
 
+    :param sql_cmd: SQL command
+    :type sql_cmd: str
+    """
     cursor.execute(sql_cmd)
 
 
@@ -111,7 +134,29 @@ def execute_sql_cmd(cursor: Any, sql_cmd) -> Any:
 def get_col_values(
     cursor: Any, table: str, col: str, cols_criteria: Optional[dict] = None
 ) -> Any:
-    """Return all `col` values or a subset corresponding to other column values in a table."""
+    """
+    Return all unique values in a tables' column, corresponding to values in other column(s).
+
+    :param table: Name of the table from which to fetch the values
+    :type table: str
+
+    :param col: Name of the column from which to fetch the values
+    :type col: str
+
+    **Default arguments:**
+
+    :param cols_criteria: If it is required to filter on values in other column(s),
+    then the criteria must be passed here
+
+    * Ex.: {"var_detail_id": 1186, "region_id": 89},
+
+        |br| * the default value is None
+
+    :type cols_criteria: dict
+
+    :returns: out_result
+    :rtype: str/float/int/list
+    """
     sql_cmd = f"SELECT {col} FROM {table}"
 
     if cols_criteria is not None:
@@ -137,25 +182,47 @@ def get_col_values(
 
     # return a list of values if there is more than 1 unique
     # value, else just the unique value
-    result_list = [res[0] for res in result]
-    if len(np.unique(result_list)) == 1:
-        return result_list[0]
+    out_result = [res[0] for res in result]
+    if len(np.unique(out_result)) == 1:
+        return out_result[0]
 
-    return result_list
+    return out_result
 
 
 def get_primary_key(table: str, cols_criteria: dict) -> Any:
-    """Return primary key/keys corresponding to other column values in a table."""
-    col_vals = get_col_values(table, "id", cols_criteria)
+    """
+    Return primary key corresponding to other column values in a table.
 
-    if not isinstance(col_vals, int):
+    :param table: Name of the table from which to fetch the values
+    :type table: str
+
+    :param cols_criteria: Values in other columns to filter on
+
+    * Ex.: {"var_name": "population", "region_id": 89}
+
+    :type cols_criteria: dict
+
+    :returns: col_val
+    :rtype: int
+    """
+    col_val = get_col_values(table, "id", cols_criteria)
+
+    if not isinstance(col_val, int):
         raise ValueError("many primary keys returned.")
-    return col_vals
+    return col_val
 
 
 @with_db_connection()
 def get_table(cursor: Any, sql_cmd: str) -> pd.DataFrame:
-    """Return a table as dataframe based on the sql_cmd."""
+    """
+    Return a table as dataframe based on the passed SQL command.
+
+    :param sql_cmd: SQL command
+    :type sql_cmd: str
+
+    :returns: table_df
+    :rtype: pd.DataFrame
+    """
     engine = get_db_engine()
     engine_conn = engine.connect()
 
@@ -173,7 +240,16 @@ def get_table(cursor: Any, sql_cmd: str) -> pd.DataFrame:
 
 @with_db_connection()
 def get_regions(cursor: Any, resolution: str) -> pd.DataFrame:
-    """Return dataframe of region codes and their primary keys corresponding to the specified resolution from the DB."""
+    """
+    Return region codes and their primary keys corresponding to a specified
+    sptatial resolution from the database.
+
+    :param resolution: Desired spatial resolution
+    :type resolution: str, one of {"NUTS0", "NUTS1", "NUTS2", "NUTS3", "LAU"}
+
+    :returns: regions_df
+    :rtype: pd.DataFrame
+    """
     # Construct sql command
     sql_cmd = f"SELECT id, region_code FROM regions WHERE resolution='{resolution}'"
 
@@ -184,10 +260,22 @@ def get_regions(cursor: Any, resolution: str) -> pd.DataFrame:
 
 
 @with_db_connection()
-def get_proxy_data(cursor: Any, var_name: str, spatial_resolution) -> pd.DataFrame:
-    """Return dataframe from processed_data table at specified resolution."""  # TODO: update docstring
+def get_proxy_data(cursor: Any, var_name: str, spatial_resolution: str) -> pd.DataFrame:
+    """
+    Return data that is to be used as a spatial proxy during disaggregation,
+    at a specified spatial resolution.
 
+    :param var_name: The name of the proxy, strictly as per the "variables_with_details_and_tags.xlsx"
+    :type var_name: str
+
+    :param spatial_resolution: Desired spatial resolution
+    :type spatial_resolution: str, one of {"NUTS0", "NUTS1", "NUTS2", "NUTS3", "LAU"}
+
+    :returns: data_df
+    :rtype: pd.DataFrame
+    """
     try:
+        # if the proxy is climate data, then values correponding to RCP4.5 and for year 2025 are returned
         if var_name.startswith("cproj_"):
             sql_cmd = f"""SELECT d.region_id, r.region_code, d.value, d.year, d.confidence_level_id 
                             FROM processed_data d
@@ -245,7 +333,13 @@ def _psql_insert_copy(table: Any, conn: Any, keys: list, data_iter: Iterable) ->
 
 
 def add_to_processed_data(db_ready_df: pd.DataFrame) -> None:
-    """Add the data to processed_data table."""
+    """
+    Insert a large chunk of data into the `processed_data` table, in the database.
+
+    :param db_ready_df: data table with all the column names exactly as in the `processed_data` table
+    :type db_ready_df: pd.DataFrame
+    """
+    # for big datasets make chunks and insert each chunk
     if len(db_ready_df) > 10000:
         db_uri = get_db_uri()
 

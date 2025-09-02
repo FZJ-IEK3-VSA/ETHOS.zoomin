@@ -21,13 +21,29 @@ db_version = os.environ.get("DB_VERSION")
 db_name = f"{db_country.lower()}_v{db_version}"
 
 
-def distribute_data_equally(
+def allocate_same_value_to_all_child_regions(
     var_data,
     source_resolution,
     target_resolution,
     proxy_confidence_level,
 ):
-    # TODO: docstrings
+    """
+    For the variables with "no proxy, same value all regions", as proxy value,
+    same value as the parent region is allocated to the child regions. Finally,
+    the disaggregated data is dumped into the `processed_data` table, in the database.
+
+    :param var_data: The source data table to be allocated to a target spatial level
+    :type var_data: pd.DataFrame
+
+    :param source_resolution: The spatial resolution of source data/`var_data`
+    :type source_resolution: str, one of {"NUTS0", "NUTS1", "NUTS2", "NUTS3", "LAU"}
+
+    :param target_resolution: The spatial resolution to which to allocate the data
+    :type target_resolution: str, one of {"NUTS0", "NUTS1", "NUTS2", "NUTS3", "LAU"}
+
+    :param proxy_confidence_level: Defines the confidence in the accuracy of the target values.
+    :type proxy_confidence_level: int
+    """
     # STEP1: Disaggregate
     regions_df = get_regions(target_resolution)
 
@@ -70,7 +86,33 @@ def perform_proxy_based_disaggregation(
     proxy_confidence_level,
     var_unit,
 ):
-    # TODO: docstrings
+    """
+    The variables with spatial proxies are spatially disaggregated here. Finally,
+    the disaggregated data is dumped into the `processed_data` table, in the database.
+
+    :param var_data: The source data table to be allocated to a target spatial level
+    :type var_data: pd.DataFrame
+
+    :param source_resolution: The spatial resolution of source data/`var_data`
+    :type source_resolution: str, one of {"NUTS0", "NUTS1", "NUTS2", "NUTS3", "LAU"}
+
+    :param target_resolution: The spatial resolution to which to allocate the data
+    :type target_resolution: str, one of {"NUTS0", "NUTS1", "NUTS2", "NUTS3", "LAU"}
+
+    :param disagg_proxy: The spatial proxy. Could be a single variable or an equation.
+    :type disagg_proxy: str
+
+    :param disagg_binary_criteria: The binary criteria to be considered. E.g. population>500.
+        In this case, the values are only disaggregated to all the target regions, whose
+        population is greater than 500
+    :type disagg_binary_criteria: str
+
+    :param proxy_confidence_level: Defines the confidence in the accuracy of the target values.
+    :type proxy_confidence_level: int
+
+    :param var_unit: The unit of measure of the `var_data`.
+    :type var_unit: str
+    """
     # STEP1: Disaggregate
     proxy_data = disagg_utils.solve_proxy_equation(disagg_proxy, target_resolution)
 
@@ -96,7 +138,6 @@ def perform_proxy_based_disaggregation(
     if var_unit == "number":
         final_df["value"] = final_df["value"].astype(int)
 
-    # TODO: the values should be integers for integer type data . For example: population
     add_to_processed_data(final_df)
 
     if any(is_bad_proxy_list):
