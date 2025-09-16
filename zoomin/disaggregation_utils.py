@@ -68,16 +68,25 @@ def solve_proxy_equation(equation: str, target_resolution: str):
 
         proxy_data.rename(columns={"value": var_name}, inplace=True)
 
+        # NOTE: if a proxy value is missing and was not imputed using machine learning, then its 0 with confidence_level - MISSING (1).
+        # However, as a proxy, its confidence_level is changed to VERY LOW (2)
+        # Reason: After disaggregation of a target value using the proxy, the disaggregated value will get a confidence_level that is a minimum
+        # of the proxy confidence, the target value confidence, and the confidence in the strength of proxy to spatially represent the target variable.
+        # If the proxy confidence_level_id is 1, then the disaggregated target value will be shown as MISSING at the end.
+        # We don't want that. We want it to show as VERY LOW.
+        proxy_data.loc[proxy_data["col"] == 1, "col"] = 2
+
         if result is None:
             result = proxy_data
         else:
             result = pd.merge(result, proxy_data, on=["region_code", "region_id"])
 
-            # merged confidence_level_id and year
-            # NOTE: depends on the poorest quality rating and most old data. Hence min
+            # aggregate confidence_level_id : depends on the poorest quality rating, hence "min".
             result["confidence_level_id"] = result[
                 ["confidence_level_id_x", "confidence_level_id_y"]
             ].min(axis=1)
+
+            # aggregate year: most old data. Hence "min"
             result["year"] = result[["year_x", "year_y"]].min(axis=1)
 
             result.drop(
@@ -239,8 +248,8 @@ def disaggregate_data(target_data, proxy_data, proxy_confidence_level):
 
         disagg_df = disaggregate_value(row["value"], _proxy_data, source_region_code)
 
-        ## Calculate confidence_level_id by taking the minimum of
-        ## confidence_level_id of proxy values, confidence_level_id of target value, and proxy_confidence_level
+        # Calculate confidence_level_id by taking the minimum of
+        # confidence_level_id of proxy values, confidence_level_id of target value, and proxy_confidence_level
         _confidence_level = min(proxy_confidence_level, row["confidence_level_id"])
 
         disagg_df["confidence_level_id"] = np.minimum(
