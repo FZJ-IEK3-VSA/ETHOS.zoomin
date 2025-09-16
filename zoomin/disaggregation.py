@@ -128,7 +128,7 @@ def perform_proxy_based_disaggregation(
             proxy_data, disagg_binary_criteria, target_resolution
         )
 
-    final_df, is_bad_proxy_list = disagg_utils.disaggregate_data(
+    final_df = disagg_utils.disaggregate_data(
         var_data, proxy_data, proxy_confidence_level
     )
 
@@ -139,6 +139,3 @@ def perform_proxy_based_disaggregation(
         final_df["value"] = final_df["value"].astype(int)
 
     add_to_processed_data(final_df)
-
-    if any(is_bad_proxy_list):
-        return "bad_proxy"

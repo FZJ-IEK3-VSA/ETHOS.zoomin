@@ -16,8 +16,6 @@ db_version = os.environ.get("DB_VERSION")
 
 db_name = f"{db_country.lower()}_v{db_version}"
 
-bad_proxy_dict = {}
-
 mini_db = int(os.environ.get("MINI_DB"))
 
 collected_vars_nuts0 = sm_utls.get_collected_vars("NUTS0") # only NUTS0 vars can be disaggregated to NUTS1
@@ -43,7 +41,7 @@ def log_error(error, file_name):
 
 rule all:
     input:
-        f"output_logs/bad_proxy_{db_name}.json"
+        f"output_logs/finished_{db_name}.log"
 
 
 # Define a wildcard for each parameter
@@ -61,12 +59,9 @@ rule disaggregate_nuts0_collected_vars:
     run:
         try:
             
-            bad_proxy = disagg_manager.disaggregate_collected_var(wildcards.wc_collected_var_nuts0,
+            disagg_manager.disaggregate_collected_var(wildcards.wc_collected_var_nuts0,
                                                                 source_resolution = "NUTS0",
                                                                 target_resolution = "NUTS1")
-
-            if bad_proxy is not None:
-                bad_proxy_dict.update({wildcards.wc_collected_var_nuts0: bad_proxy})
 
         except Exception as e:
             sm_utls.clear_rows_from_processed_data(wildcards.wc_collected_var_nuts0, target_resolution='NUTS1')
@@ -87,13 +82,10 @@ rule disaggregate_eucalc_vars:
         touch("output_logs/{wc_db_name}/eucalc_vars/{wc_eucalc_var}_{wc_eucalc_year}_{wc_pathway}.log")
     run:
         try:
-            bad_proxy = disagg_manager.disaggregate_eucalc_var(wildcards.wc_eucalc_var, 
+            disagg_manager.disaggregate_eucalc_var(wildcards.wc_eucalc_var, 
                                                 wildcards.wc_pathway,
                                                 wildcards.wc_eucalc_year,
                                                 "NUTS1")
-
-            if bad_proxy is not None:
-                bad_proxy_dict.update({f"{wildcards.wc_eucalc_var}_{wildcards.wc_eucalc_year}_{wildcards.wc_pathway}": bad_proxy})
 
         except Exception as e:
             sm_utls.clear_rows_from_processed_data(wildcards.wc_eucalc_var, 
@@ -119,8 +111,4 @@ rule final:
         f"output_logs/{db_name}/finished_collected_vars_nuts0.log",
         f"output_logs/{db_name}/finished_eucalc_vars.log"
     output:
-        f"output_logs/bad_proxy_{db_name}.json"
-    run:
-        # log bad proxies 
-        with open(f"output_logs/bad_proxy_{db_name}.json", 'w') as fp:
-            json.dump(bad_proxy_dict, fp)
+        touch("output_logs/finished_{wc_db_name}.log")
