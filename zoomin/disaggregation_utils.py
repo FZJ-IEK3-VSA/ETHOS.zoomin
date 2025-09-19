@@ -74,7 +74,9 @@ def solve_proxy_equation(equation: str, target_resolution: str):
         # of the proxy confidence, the target value confidence, and the confidence in the strength of proxy to spatially represent the target variable.
         # If the proxy confidence_level_id is 1, then the disaggregated target value will be shown as MISSING at the end.
         # We don't want that. We want it to show as VERY LOW.
-        proxy_data.loc[proxy_data["col"] == 1, "col"] = 2
+        proxy_data.loc[
+            proxy_data["confidence_level_id"] == 1, "confidence_level_id"
+        ] = 2
 
         if result is None:
             result = proxy_data
