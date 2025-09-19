@@ -68,16 +68,27 @@ def solve_proxy_equation(equation: str, target_resolution: str):
 
         proxy_data.rename(columns={"value": var_name}, inplace=True)
 
+        # NOTE: if a proxy value is missing and was not imputed using machine learning, then its 0 with confidence_level - MISSING (1).
+        # However, as a proxy, its confidence_level is changed to VERY LOW (2)
+        # Reason: After disaggregation of a target value using the proxy, the disaggregated value will get a confidence_level that is a minimum
+        # of the proxy confidence, the target value confidence, and the confidence in the strength of proxy to spatially represent the target variable.
+        # If the proxy confidence_level_id is 1, then the disaggregated target value will be shown as MISSING at the end.
+        # We don't want that. We want it to show as VERY LOW.
+        proxy_data.loc[
+            proxy_data["confidence_level_id"] == 1, "confidence_level_id"
+        ] = 2
+
         if result is None:
             result = proxy_data
         else:
             result = pd.merge(result, proxy_data, on=["region_code", "region_id"])
 
-            # merged confidence_level_id and year
-            # NOTE: depends on the poorest quality rating and most old data. Hence min
+            # aggregate confidence_level_id : depends on the poorest quality rating, hence "min".
             result["confidence_level_id"] = result[
                 ["confidence_level_id_x", "confidence_level_id_y"]
             ].min(axis=1)
+
+            # aggregate year: most old data. Hence "min"
             result["year"] = result[["year_x", "year_y"]].min(axis=1)
 
             result.drop(
@@ -145,28 +156,33 @@ def apply_binary_disaggregation_criteria(
     """
     out_proxy_data = proxy_data.copy()
 
-    [equation, threshold] = binary_disaggregation_criteria.split(
-        ">="
-    )  # NOTE: only greater than or equal to is implemented
+    expr = binary_disaggregation_criteria.strip()
+    binary_criteria_var_names = set(re.findall(r"\b[a-zA-Z_]\w*\b", expr))
 
-    result = solve_proxy_equation(equation, target_resolution)
-    result = result[["region_id", "region_code", "value"]].copy()
+    for var in binary_criteria_var_names:
+        _proxy_data = get_proxy_data(var, target_resolution)
+        _proxy_data = _proxy_data[["region_id", "value"]].copy()
+        _proxy_data.rename(columns={"value": var}, inplace=True)
 
-    # Merge the dataframes on 'region_id'
-    merged = proxy_data.merge(result, on=["region_id", "region_code"], how="left")
+        out_proxy_data = pd.merge(out_proxy_data, _proxy_data, on="region_id")
 
-    # Update the 'value' column in proxy_data based on the threshold
-    merged.loc[merged["value_y"] < float(threshold), "value_x"] = 0
+    try:
+        out_proxy_data["__mask__"] = out_proxy_data.eval(expr)
+    except Exception as e:
+        raise ValueError(
+            f"Failed to evaluate criteria '{binary_disaggregation_criteria}': {e}"
+        )
 
-    # Drop the extra columns and rename the columns to original names
-    out_proxy_data = merged.drop(columns=["value_y"]).rename(
-        columns={"value_x": "value"}
-    )
+    drop_columns = list(binary_criteria_var_names)
+    drop_columns.append("__mask__")
+
+    out_proxy_data.loc[~out_proxy_data["__mask__"].fillna(False), "value"] = 0
+    out_proxy_data.drop(columns=drop_columns, inplace=True)
 
     return out_proxy_data
 
 
-def disaggregate_value(target_value, proxy_data):
+def disaggregate_value(target_value, proxy_data, source_region_code):
     """
     Spatially disaggregate a value to its child/target regions.
 
@@ -176,6 +192,9 @@ def disaggregate_value(target_value, proxy_data):
     :param proxy_data: The spatial proxy to be used.
     :type proxy_data: pd.DataFrame
 
+    :param source_region_code: The region code of the source value, which is to be disaggregated.
+    :type source_region_code: str
+
     :returns: disagg_data
     :rtype: pd.DataFrame
     """
@@ -183,21 +202,14 @@ def disaggregate_value(target_value, proxy_data):
 
     total = disagg_data["value"].values.sum()
 
-    # INFO: If proxy data is 0 in all regions, then the target value cannot
-    # be distributed to target regions. In this case, the provided
-    # proxy is ignored and the target value is equally distributed
-    # to all target regions TODO: raise a warning. Make sure no proxy leads to this situation because
-    # this means that it is a bad_proxy
-    if total == 0:
-        disagg_data = disagg_data.drop(["value"], axis=1)
-        disagg_data["value"] = target_value / len(proxy_data)
-        is_bad_proxy = True
+    if total == 0 and target_value != 0:
+        raise ValueError(
+            f"The proxy values are all 0. Cannot distribute target value of {target_value} of region {source_region_code}"
+        )
 
     elif target_value == 0:
         disagg_data = disagg_data.drop(["value"], axis=1)
         disagg_data["value"] = 0
-
-        is_bad_proxy = False
 
     else:
         # disaggregte
@@ -209,9 +221,7 @@ def disaggregate_value(target_value, proxy_data):
             columns={"disagg_value": "value"}
         )
 
-        is_bad_proxy = False  # TODO: remove this
-
-    return disagg_data, is_bad_proxy
+    return disagg_data
 
 
 def disaggregate_data(target_data, proxy_data, proxy_confidence_level):
@@ -234,17 +244,14 @@ def disaggregate_data(target_data, proxy_data, proxy_confidence_level):
     # disaggregate value in each source region to the corresponding target regions
     disagg_df_list = []
 
-    for key_row in target_data.iterrows():
-        row = key_row[1]
-        _proxy_data = proxy_data[proxy_data["match_region_code"] == row["region_code"]]
+    for _, row in target_data.iterrows():
+        source_region_code = row["region_code"]
+        _proxy_data = proxy_data[proxy_data["match_region_code"] == source_region_code]
 
-        is_bad_proxy_list = []
+        disagg_df = disaggregate_value(row["value"], _proxy_data, source_region_code)
 
-        disagg_df, is_bad_proxy = disaggregate_value(row["value"], _proxy_data)
-        is_bad_proxy_list.append(is_bad_proxy)
-
-        ## Calculate confidence_level_id by taking the minimum of
-        ## confidence_level_id of proxy values, confidence_level_id of target value, and proxy_confidence_level
+        # Calculate confidence_level_id by taking the minimum of
+        # confidence_level_id of proxy values, confidence_level_id of target value, and proxy_confidence_level
         _confidence_level = min(proxy_confidence_level, row["confidence_level_id"])
 
         disagg_df["confidence_level_id"] = np.minimum(
@@ -272,4 +279,4 @@ def disaggregate_data(target_data, proxy_data, proxy_confidence_level):
 
     final_disagg_df = pd.concat(disagg_df_list)
 
-    return final_disagg_df, is_bad_proxy_list
+    return final_disagg_df

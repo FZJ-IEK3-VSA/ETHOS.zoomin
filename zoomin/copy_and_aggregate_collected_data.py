@@ -61,6 +61,11 @@ def aggregate_collected_var(cursor, var_detail_id, agg_mode, spatial_resolution)
     for agg_spatial_level in agg_spatial_levels:
         n_char_to_keep = char_dict[agg_spatial_level]
 
+        if agg_mode == "MODE":
+            agg_sql_block = "MODE() WITHIN GROUP (ORDER BY scd.value)"
+        else:
+            agg_sql_block = f"ROUND(CAST({agg_mode}(scd.value) AS numeric), 5)"
+
         # NOTE:for variables with mixed years, the oldest year is considered during aggregation
         sql_cmd = f"""
         INSERT INTO processed_data (region_id, var_detail_id, confidence_level_id, proxy_detail_id, year, value)
@@ -70,7 +75,7 @@ def aggregate_collected_var(cursor, var_detail_id, agg_mode, spatial_resolution)
             MIN(scd.confidence_level_id),
             scd.proxy_detail_id,
             MIN(scd.year), 
-            ROUND(CAST({agg_mode}(scd.value) AS numeric), 5)
+            {agg_sql_block}
         FROM 
             staged_collected_data AS scd
         JOIN 
@@ -88,8 +93,7 @@ def aggregate_collected_var(cursor, var_detail_id, agg_mode, spatial_resolution)
         cursor.execute(sql_cmd)
 
 
-@with_db_connection()
-def aggregate_collected_data(cursor):
+def aggregate_collected_data():
     """Aggregate staged collected data to different upper spatial levels and dump
     it into the `processed_data` table in the database."""
     for spatial_resolution in ["NUTS2", "NUTS3", "LAU"]:
@@ -112,7 +116,7 @@ def aggregate_collected_data(cursor):
             var_aggregation_method = row["var_aggregation_method"]
 
             aggregate_collected_var(
-                cursor, var_detail_id, var_aggregation_method, spatial_resolution
+                var_detail_id, var_aggregation_method, spatial_resolution
             )
 
 

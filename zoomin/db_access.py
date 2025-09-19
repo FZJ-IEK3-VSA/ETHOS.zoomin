@@ -85,16 +85,14 @@ def get_db_uri() -> str:
     return db_uri
 
 
-def get_db_engine() -> Any:
-    """Set up database connection engine and return engine.
-
-    :returns: engine
-    :rtype: sqlalchemy.Engine
-    """
-    db_uri = get_db_uri()
-    engine = create_engine(db_uri, pool_pre_ping=True)
-
-    return engine
+ENGINE = create_engine(
+    get_db_uri(),
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10,
+    pool_recycle=1800,
+    future=True,
+)
 
 
 @with_db_connection()
@@ -212,8 +210,7 @@ def get_primary_key(table: str, cols_criteria: dict) -> Any:
     return col_val
 
 
-@with_db_connection()
-def get_table(cursor: Any, sql_cmd: str) -> pd.DataFrame:
+def get_table(sql_cmd: str) -> pd.DataFrame:
     """
     Return a table as dataframe based on the passed SQL command.
 
@@ -223,23 +220,20 @@ def get_table(cursor: Any, sql_cmd: str) -> pd.DataFrame:
     :returns: table_df
     :rtype: pd.DataFrame
     """
-    engine = get_db_engine()
-    engine_conn = engine.connect()
+    with ENGINE.begin() as conn:
+        sql_iterator = pd.read_sql_query(sql=sql_cmd, con=conn, chunksize=5)
 
-    sql_iterator = pd.read_sql_query(sql=sql_cmd, con=engine_conn, chunksize=5)
+        chunks = []
+        for chunk in sql_iterator:
+            chunks.append(chunk)
 
-    chunks = []
-    for chunk in sql_iterator:
-        chunks.append(chunk)
+        # Concatenate all processed chunks into a single DataFrame
+        table_df = pd.concat(chunks, ignore_index=True)
 
-    # Concatenate all processed chunks into a single DataFrame
-    table_df = pd.concat(chunks, ignore_index=True)
-
-    return table_df
+        return table_df
 
 
-@with_db_connection()
-def get_regions(cursor: Any, resolution: str) -> pd.DataFrame:
+def get_regions(resolution: str) -> pd.DataFrame:
     """
     Return region codes and their primary keys corresponding to a specified
     sptatial resolution from the database.
@@ -259,8 +253,7 @@ def get_regions(cursor: Any, resolution: str) -> pd.DataFrame:
     return regions_df
 
 
-@with_db_connection()
-def get_proxy_data(cursor: Any, var_name: str, spatial_resolution: str) -> pd.DataFrame:
+def get_proxy_data(var_name: str, spatial_resolution: str) -> pd.DataFrame:
     """
     Return data that is to be used as a spatial proxy during disaggregation,
     at a specified spatial resolution.
@@ -355,11 +348,11 @@ def add_to_processed_data(db_ready_df: pd.DataFrame) -> None:
 
     # for smaller datasets make a normal entry
     else:
-        engine = get_db_engine()
-        db_ready_df.to_sql(
-            "processed_data",
-            engine,
-            index=False,
-            if_exists="append",
-            method=_psql_insert_copy,
-        )
+        with ENGINE.begin() as conn:
+            db_ready_df.to_sql(
+                "processed_data",
+                conn,
+                index=False,
+                if_exists="append",
+                method=_psql_insert_copy,
+            )
