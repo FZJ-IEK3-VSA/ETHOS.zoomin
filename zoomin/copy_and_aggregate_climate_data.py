@@ -34,6 +34,7 @@ copy_climate_data_into_processed_data()
 char_dict = {"NUTS3": 5, "NUTS2": 4, "NUTS1": 3, "NUTS0": 2}
 
 
+@with_db_connection()
 def aggregate_climate_data(cursor, data_type, agg_spatial_level):
     """Aggregate staged climate data, to different upper spatial levels and dump
     it into the `processed_data` table in the database.
@@ -82,13 +83,12 @@ def aggregate_climate_data(cursor, data_type, agg_spatial_level):
     cursor.execute(sql_cmd)
 
 
-@with_db_connection()
-def aggregate_all_levels(cursor):
+def aggregate_all_levels():
     """Aggregate staged climate data, to different upper spatial levels and dump
     it into the `processed_data` table in the database."""
     for data_type in ["climate_projection", "climate_impact"]:
         for agg_spatial_level in ["NUTS0", "NUTS1", "NUTS2"]:
-            aggregate_climate_data(cursor, data_type, agg_spatial_level)
+            aggregate_climate_data(data_type, agg_spatial_level)
 
 
 aggregate_all_levels()

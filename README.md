@@ -57,7 +57,7 @@ The SQL commands, to carry out the calculation, are prepared and stored in the d
     ```bash
     cd ETHOS.zoomin
     mamba env create --file=requirements.yml
-    conda activate zoomin
+    mamba activate zoomin
     pip install -e .
     ```
 

@@ -15,8 +15,6 @@ db_version = os.environ.get("DB_VERSION")
 
 db_name = f"{db_country.lower()}_v{db_version}"
 
-bad_proxy_dict = {}
-
 mini_db = int(os.environ.get("MINI_DB"))
 
 def log_error(error, file_name):
