@@ -58,15 +58,10 @@ def solve_proxy_equation(equation: str, target_resolution: str):
     for var_name in var_list:
         proxy_data = get_proxy_data(var_name, target_resolution)
 
-        # If there is no variance in data, we cannot normailize it. So everything is just set to 1
-        if (len(proxy_data) > 1) & (len(proxy_data["value"].unique()) == 1):
-            proxy_data["value"] = 1
-        else:
-            proxy_data["value"] = (
-                proxy_data["value"] / proxy_data["value"].max()
-            )  # normalizing this way to retain true 0s in the normalized data
+        # normalizing this way to retain true 0s in the normalized data
+        proxy_data["value"] = proxy_data["value"] / proxy_data["value"].max()
 
-            proxy_data["value"] = proxy_data["value"].replace([np.inf, np.nan], 0)
+        proxy_data["value"] = proxy_data["value"].replace([np.inf, np.nan], 0)
 
         proxy_data.rename(columns={"value": var_name}, inplace=True)
 
