@@ -58,13 +58,10 @@ def solve_proxy_equation(equation: str, target_resolution: str):
     for var_name in var_list:
         proxy_data = get_proxy_data(var_name, target_resolution)
 
-        # If there is no variance in data, we cannot normailize it. So everything is just set to 0
-        if len(proxy_data["value"].unique()) == 1:
-            proxy_data["value"] = 0
-        else:
-            proxy_data["value"] = (
-                proxy_data["value"] / proxy_data["value"].max()
-            )  # normalizing this way to retain true 0s in the normalized data
+        # normalizing this way to retain true 0s in the normalized data
+        proxy_data["value"] = proxy_data["value"] / proxy_data["value"].max()
+
+        proxy_data["value"] = proxy_data["value"].replace([np.inf, np.nan], 0)
 
         proxy_data.rename(columns={"value": var_name}, inplace=True)
 
@@ -102,9 +99,7 @@ def solve_proxy_equation(equation: str, target_resolution: str):
             )
 
     equation = equation.replace("\n", " ")
-
     result = result.eval(f"value = {equation}")
-    result["value"] = result["value"].replace([np.inf, np.nan], 0)
 
     result = result[
         ["region_code", "region_id", "confidence_level_id", "year", "value"]
@@ -243,7 +238,6 @@ def disaggregate_data(target_data, proxy_data, proxy_confidence_level):
     """
     # disaggregate value in each source region to the corresponding target regions
     disagg_df_list = []
-
     for _, row in target_data.iterrows():
         source_region_code = row["region_code"]
         _proxy_data = proxy_data[proxy_data["match_region_code"] == source_region_code]
